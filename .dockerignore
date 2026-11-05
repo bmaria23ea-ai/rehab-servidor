@@ -1,0 +1,10 @@
+# Nada de esto entra al contexto de construcción de Docker
+.git
+secrets/
+data/
+backups/
+**/bin/
+**/obj/
+*.log
+.env
+.env.*

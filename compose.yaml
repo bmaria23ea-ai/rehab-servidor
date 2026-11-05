@@ -1,4 +1,4 @@
-# Servicios del sistema de sesiones. Por ahora solo MariaDB; la API y Nginx se agregan después.
+# Servicios del sistema de sesiones. Nginx se agrega después.
 services:
   db:
     image: mariadb:12.3
@@ -26,6 +26,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Rehab.Api/Dockerfile
+    image: rehab-api:dev
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DB_HOST: db
+      DB_PASSWORD_FILE: /run/secrets/db_app_password
+    secrets:
+      - db_app_password
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+    # Endurecimiento del contenedor
+    read_only: true                     # sistema de archivos de solo lectura
+    tmpfs:
+      - /tmp                            # única carpeta escribible (temporal, en memoria)
+    cap_drop:
+      - ALL                             # sin privilegios especiales de Linux
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
 
 secrets:
   db_root_password:
