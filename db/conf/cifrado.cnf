@@ -1,0 +1,18 @@
+# Cifrado en reposo de MariaDB (plugin file_key_management).
+# La clave llega como Docker secret; nunca se guarda en el repositorio.
+[mariadb]
+plugin_load_add = file_key_management
+file_key_management_filename = /run/secrets/mariadb_keyfile
+file_key_management_encryption_algorithm = AES_CTR
+
+# Todas las tablas InnoDB cifradas (FORCE impide crear tablas sin cifrar)
+innodb_encrypt_tables = FORCE
+innodb_encrypt_log = ON
+innodb_encrypt_temporary_tables = ON
+innodb_encryption_threads = 2
+
+# Archivos temporales, binlog y tablas Aria también cifrados
+encrypt_tmp_files = ON
+encrypt_tmp_disk_tables = ON
+encrypt_binlog = ON
+aria_encrypt_tables = ON

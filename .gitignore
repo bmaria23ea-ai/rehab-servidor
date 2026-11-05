@@ -1,0 +1,29 @@
+# Secretos y configuración local (nunca al repositorio)
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+*.csr
+
+# Datos, respaldos y registros
+data/
+backups/
+*.sql
+*.sql.gz
+*.age
+*.gpg
+logs/
+*.log
+
+# Compilación de .NET
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+!db/init/*.sql

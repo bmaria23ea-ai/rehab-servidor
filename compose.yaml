@@ -1,0 +1,43 @@
+# Servicios del sistema de sesiones. Por ahora solo MariaDB; la API y Nginx se agregan después.
+services:
+  db:
+    image: mariadb:12.3
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MARIADB_DATABASE: rehab
+      MARIADB_USER: rehab_api
+      MARIADB_PASSWORD_FILE: /run/secrets/db_app_password
+      MARIADB_AUTO_UPGRADE: "1"
+    secrets:
+      - db_root_password
+      - db_app_password
+      - mariadb_keyfile
+    volumes:
+      - db_data:/var/lib/mysql                                  # datos (cifrados)
+      - ./db/init:/docker-entrypoint-initdb.d:ro                # esquema y permisos, solo la primera vez
+      - ./db/conf/cifrado.cnf:/etc/mysql/conf.d/cifrado.cnf:ro  # configuración de cifrado
+    networks:
+      - backend
+    # Sin "ports": la base no se publica fuera de Docker.
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 20s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+secrets:
+  db_root_password:
+    file: ./secrets/db_root_password.txt
+  db_app_password:
+    file: ./secrets/db_app_password.txt
+  mariadb_keyfile:
+    file: ./secrets/mariadb_keyfile.txt
+
+networks:
+  backend:
+    internal: true   # red sin salida a internet
+
+volumes:
+  db_data:
