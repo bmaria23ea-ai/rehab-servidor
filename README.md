@@ -8,7 +8,7 @@ Los pacientes se identifican solo con un código seudónimo (`P-001`). El sistem
 
 | Servicio | Imagen | Función |
 |---|---|---|
-| `proxy` | `nginxinc/nginx-unprivileged:1.30-alpine` | Único servicio publicado. HTTPS solo con TLS 1.3, límite de tasa y cabeceras de seguridad |
+| `proxy` | `nginxinc/nginx-unprivileged:1.30-alpine` | Único servicio publicado. HTTPS con TLS 1.3 y 1.2 (solo suites ECDHE con AES-GCM o ChaCha20), límite de tasa y cabeceras de seguridad |
 | `api` | Se construye desde `src/Rehab.Api` (ASP.NET Core 10) | Enrolamiento de visores, tokens JWT, lista de pacientes y recepción de sesiones |
 | `db` | `mariadb:12.3` | Base de datos con cifrado en reposo. No se publica fuera de Docker |
 
