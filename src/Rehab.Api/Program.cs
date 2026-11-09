@@ -2,6 +2,7 @@
 // Sin argumentos inicia la API. Con un comando "visor-..." o "paciente-..." ejecuta una tarea
 // de administración y termina.
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
 using MySqlConnector;
 using Rehab.Api.Admin;
@@ -70,6 +71,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
 
 builder.Services.AddLimites();
 
+// JSON estricto: un campo desconocido hace que la petición se rechace
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow);
+
 // Errores: respuesta genérica, sin detalles internos
 builder.Services.AddProblemDetails();
 
@@ -84,6 +89,7 @@ app.UseRateLimiter();
 app.MapEnrolamiento();
 app.MapToken();
 app.MapPacientes();
+app.MapSesiones();
 
 // Salud: confirma que la API llega a la base. No revela detalles del error.
 app.MapGet("/salud", async (MySqlDataSource ds, ILogger<Program> log, CancellationToken ct) =>

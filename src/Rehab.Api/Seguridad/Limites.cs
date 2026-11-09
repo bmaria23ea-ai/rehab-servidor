@@ -8,6 +8,7 @@ public static class Limites
 {
     public const string Enrolamiento = "enrolamiento";
     public const string Token = "token";
+    public const string Sesiones = "sesiones";
 
     public static IServiceCollection AddLimites(this IServiceCollection services) =>
         services.AddRateLimiter(o =>
@@ -30,6 +31,16 @@ public static class Limites
                 _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
+
+            // Sesiones: 30 envíos por minuto por IP (alcanza para vaciar la cola sin conexión)
+            o.AddPolicy(Sesiones, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "desconocida",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 30,
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0,
                 }));
