@@ -1,7 +1,10 @@
 // API de sesiones de rehabilitación.
 // Sin argumentos inicia la API. Con un comando "visor-..." ejecuta una tarea de administración y termina.
+using Microsoft.AspNetCore.HttpOverrides;
 using MySqlConnector;
 using Rehab.Api.Admin;
+using Rehab.Api.Endpoints;
+using Rehab.Api.Seguridad;
 
 bool esComandoAdmin = args.Length > 0 && args[0].StartsWith("visor-", StringComparison.Ordinal);
 
@@ -36,12 +39,28 @@ if (esComandoAdmin)
 
 builder.Services.AddSingleton(dataSource);
 
+// IP real del cliente: la envía Nginx en X-Forwarded-For. Se confía en cualquier origen porque
+// la API solo es alcanzable desde la red interna de Docker, donde el único cliente HTTP es Nginx.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.ForwardLimit = 1;
+    o.KnownIPNetworks.Clear();
+    o.KnownProxies.Clear();
+});
+
+builder.Services.AddLimites();
+
 // Errores: respuesta genérica, sin detalles internos
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseRateLimiter();
+
+app.MapEnrolamiento();
 
 // Salud: confirma que la API llega a la base. No revela detalles del error.
 app.MapGet("/salud", async (MySqlDataSource ds, ILogger<Program> log, CancellationToken ct) =>
