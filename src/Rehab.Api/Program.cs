@@ -1,6 +1,6 @@
 // API de sesiones de rehabilitación.
-// Sin argumentos inicia la API. Con un comando "visor-..." o "paciente-..." ejecuta una tarea
-// de administración y termina.
+// Sin argumentos inicia la API. Con un comando de administración ("visor-...", "paciente-...",
+// "asignacion-..." o "sesion-...") ejecuta la tarea y termina.
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -9,9 +9,9 @@ using Rehab.Api.Admin;
 using Rehab.Api.Endpoints;
 using Rehab.Api.Seguridad;
 
-bool esComandoVisor = args.Length > 0 && args[0].StartsWith("visor-", StringComparison.Ordinal);
-bool esComandoPaciente = args.Length > 0 && args[0].StartsWith("paciente-", StringComparison.Ordinal);
-bool esComandoAdmin = esComandoVisor || esComandoPaciente;
+string comando = args.Length > 0 ? args[0] : "";
+bool EmpiezaCon(string prefijo) => comando.StartsWith(prefijo, StringComparison.Ordinal);
+bool esComandoAdmin = EmpiezaCon("visor-") || EmpiezaCon("paciente-") || EmpiezaCon("asignacion-") || EmpiezaCon("sesion-");
 
 var builder = WebApplication.CreateBuilder(esComandoAdmin ? [] : args);
 
@@ -39,10 +39,12 @@ var cadena = new MySqlConnectionStringBuilder
 var dataSource = new MySqlDataSource(cadena.ConnectionString);
 
 // Tareas de administración desde la terminal del servidor: no inician la API
-if (esComandoVisor)
+if (EmpiezaCon("visor-"))
     return await ComandosVisor.EjecutarAsync(args, dataSource);
-if (esComandoPaciente)
+if (EmpiezaCon("paciente-"))
     return await ComandosPaciente.EjecutarAsync(args, dataSource);
+if (esComandoAdmin)
+    return await ComandosAsignacion.EjecutarAsync(args, dataSource);
 
 builder.Services.AddSingleton(dataSource);
 
