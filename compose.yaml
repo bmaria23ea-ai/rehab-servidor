@@ -37,8 +37,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       DB_HOST: db
       DB_PASSWORD_FILE: /run/secrets/db_app_password
+      JWT_KEY_FILE: /run/secrets/jwt_key
     secrets:
       - db_app_password
+      - jwt_key
     networks:
       - backend
     depends_on:
@@ -93,6 +95,8 @@ secrets:
     file: ./secrets/tls/servidor.crt
   tls_key:
     file: ./secrets/tls/servidor.key
+  jwt_key:
+    file: ./secrets/jwt_key.txt
 
 networks:
   frontend: {}       # red del proxy hacia afuera

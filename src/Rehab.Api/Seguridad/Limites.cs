@@ -7,6 +7,7 @@ namespace Rehab.Api.Seguridad;
 public static class Limites
 {
     public const string Enrolamiento = "enrolamiento";
+    public const string Token = "token";
 
     public static IServiceCollection AddLimites(this IServiceCollection services) =>
         services.AddRateLimiter(o =>
@@ -19,6 +20,16 @@ public static class Limites
                 _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
+
+            // Token: 10 solicitudes por minuto por IP (un visor pide uno cada 15 minutos)
+            o.AddPolicy(Token, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "desconocida",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0,
                 }));

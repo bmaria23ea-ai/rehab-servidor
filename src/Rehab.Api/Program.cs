@@ -1,5 +1,6 @@
 // API de sesiones de rehabilitación.
 // Sin argumentos inicia la API. Con un comando "visor-..." ejecuta una tarea de administración y termina.
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using MySqlConnector;
 using Rehab.Api.Admin;
@@ -39,6 +40,19 @@ if (esComandoAdmin)
 
 builder.Services.AddSingleton(dataSource);
 
+// JWT de los visores: la clave de firma se lee de un archivo (Docker secret)
+var emisorJwt = EmisorJwt.DesdeArchivo(builder.Configuration["JWT_KEY_FILE"] ?? "/run/secrets/jwt_key");
+builder.Services.AddSingleton(emisorJwt);
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(o =>
+    {
+        o.MapInboundClaims = false;                          // conserva los nombres de los claims
+        o.TokenValidationParameters = emisorJwt.ParametrosValidacion();
+        o.Events = new JwtBearerEvents { OnTokenValidated = ValidacionVisor.ComprobarActivoAsync };
+    });
+builder.Services.AddAuthorization();
+
 // IP real del cliente: la envía Nginx en X-Forwarded-For. Se confía en cualquier origen porque
 // la API solo es alcanzable desde la red interna de Docker, donde el único cliente HTTP es Nginx.
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
@@ -58,9 +72,12 @@ var app = builder.Build();
 app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapEnrolamiento();
+app.MapToken();
 
 // Salud: confirma que la API llega a la base. No revela detalles del error.
 app.MapGet("/salud", async (MySqlDataSource ds, ILogger<Program> log, CancellationToken ct) =>
