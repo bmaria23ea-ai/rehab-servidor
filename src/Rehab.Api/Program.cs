@@ -1,7 +1,11 @@
-// API de sesiones de rehabilitación. Por ahora solo comprueba la conexión con MariaDB.
+// API de sesiones de rehabilitación.
+// Sin argumentos inicia la API. Con un comando "visor-..." ejecuta una tarea de administración y termina.
 using MySqlConnector;
+using Rehab.Api.Admin;
 
-var builder = WebApplication.CreateBuilder(args);
+bool esComandoAdmin = args.Length > 0 && args[0].StartsWith("visor-", StringComparison.Ordinal);
+
+var builder = WebApplication.CreateBuilder(esComandoAdmin ? [] : args);
 
 // Kestrel: peticiones pequeñas (una sesión pesa pocos KB) y sin cabecera "Server"
 builder.WebHost.ConfigureKestrel(o =>
@@ -24,7 +28,13 @@ var cadena = new MySqlConnectionStringBuilder
     ConnectionTimeout = 5,
     MaximumPoolSize = 20,                       // pocas conexiones: VPS pequeño
 };
-builder.Services.AddSingleton(new MySqlDataSource(cadena.ConnectionString));
+var dataSource = new MySqlDataSource(cadena.ConnectionString);
+
+// Tareas de administración desde la terminal del servidor: no inician la API
+if (esComandoAdmin)
+    return await ComandosVisor.EjecutarAsync(args, dataSource);
+
+builder.Services.AddSingleton(dataSource);
 
 // Errores: respuesta genérica, sin detalles internos
 builder.Services.AddProblemDetails();
@@ -51,4 +61,5 @@ app.MapGet("/salud", async (MySqlDataSource ds, ILogger<Program> log, Cancellati
     }
 });
 
-app.Run();
+await app.RunAsync();
+return 0;
