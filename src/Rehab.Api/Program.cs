@@ -1,5 +1,6 @@
 // API de sesiones de rehabilitación.
-// Sin argumentos inicia la API. Con un comando "visor-..." ejecuta una tarea de administración y termina.
+// Sin argumentos inicia la API. Con un comando "visor-..." o "paciente-..." ejecuta una tarea
+// de administración y termina.
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using MySqlConnector;
@@ -7,7 +8,9 @@ using Rehab.Api.Admin;
 using Rehab.Api.Endpoints;
 using Rehab.Api.Seguridad;
 
-bool esComandoAdmin = args.Length > 0 && args[0].StartsWith("visor-", StringComparison.Ordinal);
+bool esComandoVisor = args.Length > 0 && args[0].StartsWith("visor-", StringComparison.Ordinal);
+bool esComandoPaciente = args.Length > 0 && args[0].StartsWith("paciente-", StringComparison.Ordinal);
+bool esComandoAdmin = esComandoVisor || esComandoPaciente;
 
 var builder = WebApplication.CreateBuilder(esComandoAdmin ? [] : args);
 
@@ -35,8 +38,10 @@ var cadena = new MySqlConnectionStringBuilder
 var dataSource = new MySqlDataSource(cadena.ConnectionString);
 
 // Tareas de administración desde la terminal del servidor: no inician la API
-if (esComandoAdmin)
+if (esComandoVisor)
     return await ComandosVisor.EjecutarAsync(args, dataSource);
+if (esComandoPaciente)
+    return await ComandosPaciente.EjecutarAsync(args, dataSource);
 
 builder.Services.AddSingleton(dataSource);
 
@@ -78,6 +83,7 @@ app.UseRateLimiter();
 
 app.MapEnrolamiento();
 app.MapToken();
+app.MapPacientes();
 
 // Salud: confirma que la API llega a la base. No revela detalles del error.
 app.MapGet("/salud", async (MySqlDataSource ds, ILogger<Program> log, CancellationToken ct) =>
