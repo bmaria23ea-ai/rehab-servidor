@@ -73,6 +73,11 @@ Los comandos se ejecutan dentro del contenedor de la API. No están disponibles 
 | `paciente-nuevo <código> <AAAA-MM-DD> <versión>` | Registra un paciente real con la fecha y versión de su consentimiento |
 | `paciente-prueba <código>` | Registra un paciente ficticio para pruebas |
 | `paciente-lista` | Lista los pacientes |
+| `asignacion-nueva <visor> <paciente> [horas]` | Asigna un paciente a un visor (vence a las 4 horas por defecto) |
+| `asignacion-quitar <visor>` | Quita la asignación del visor |
+| `asignacion-lista` | Lista las asignaciones vigentes y vencidas |
+| `sesion-sin-asignar` | Lista las sesiones que llegaron sin paciente |
+| `sesion-asignar <sesionId> <paciente>` | Asigna un paciente a una sesión que llegó sin él |
 
 Ejemplo:
 
@@ -88,8 +93,8 @@ Todas las rutas se publican bajo `/api/` a través de Nginx.
 |---|---|---|
 | `POST /api/visores/enrolar` | Código de enrolamiento | Canjea el código por el secreto propio del visor |
 | `POST /api/token` | Id y secreto del visor | Entrega un JWT válido por 15 minutos |
-| `GET /api/pacientes` | JWT | Códigos de pacientes para el menú del visor |
-| `POST /api/sesiones` | JWT | Recibe una sesión (formato `versionEsquema: 1`) |
+| `GET /api/asignacion` | JWT | Paciente asignado al visor (200) o ninguno (204) |
+| `POST /api/sesiones` | JWT | Recibe una sesión (formato `versionEsquema: 1`). Con `"paciente": null` queda sin asignar |
 | `GET /api/visores/yo` | JWT | Prueba de autenticación |
 | `GET /api/salud` | Ninguna | Comprueba que la API llega a la base de datos |
 

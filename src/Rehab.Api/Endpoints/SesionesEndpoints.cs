@@ -1,5 +1,6 @@
 // POST /sesiones: el visor envía una sesión terminada (completa o incompleta).
 // Valida cada campo, evita duplicados por sesionId y registra la hora de recepción del servidor.
+// Si el visor no tenía paciente asignado, "paciente" llega en null y la sesión queda sin asignar.
 using System.Text.RegularExpressions;
 using MySqlConnector;
 using Rehab.Api.Seguridad;
@@ -60,15 +61,16 @@ public static partial class SesionesEndpoints
 
         await using var tx = await cn.BeginTransactionAsync(ct);
 
-        // Paciente registrado (de prueba, o real con consentimiento)
-        await using var buscar = new MySqlCommand(
-            "SELECT id, es_prueba FROM pacientes " +
-            "WHERE codigo = @codigo AND (es_prueba OR consentimiento_utc IS NOT NULL)", cn, tx);
-        buscar.Parameters.AddWithValue("@codigo", s.Paciente);
-        int pacienteId;
-        bool pacienteDePrueba;
-        await using (var r = await buscar.ExecuteReaderAsync(ct))
+        // Paciente registrado (de prueba, o real con consentimiento). Sin paciente: queda "sin asignar".
+        int? pacienteId = null;
+        bool pacienteDePrueba = false;
+        if (s.Paciente is not null)
         {
+            await using var buscar = new MySqlCommand(
+                "SELECT id, es_prueba FROM pacientes " +
+                "WHERE codigo = @codigo AND (es_prueba OR consentimiento_utc IS NOT NULL)", cn, tx);
+            buscar.Parameters.AddWithValue("@codigo", s.Paciente);
+            await using var r = await buscar.ExecuteReaderAsync(ct);
             if (!await r.ReadAsync(ct))
                 return Results.ValidationProblem(
                     new Dictionary<string, string[]> { ["paciente"] = ["Paciente no registrado."] },
@@ -88,7 +90,7 @@ public static partial class SesionesEndpoints
                 "VALUES (@uuid, @paciente, @visor, @ejercicio, @escena, @version, @app, @prueba, @inicio, @fin, " +
                 "@dconf, @dreal, @estado, @motivo)", cn, tx);
             insertar.Parameters.AddWithValue("@uuid", sesionId.ToString("D"));
-            insertar.Parameters.AddWithValue("@paciente", pacienteId);
+            insertar.Parameters.AddWithValue("@paciente", pacienteId is int pid ? pid : DBNull.Value);
             insertar.Parameters.AddWithValue("@visor", visorId);
             insertar.Parameters.AddWithValue("@ejercicio", s.Ejercicio);
             insertar.Parameters.AddWithValue("@escena", s.Escena);
@@ -154,7 +156,8 @@ public static partial class SesionesEndpoints
 
         if (s.VersionEsquema != 1) Error("versionEsquema", "Versión de esquema no soportada.");
         if (s.SesionId is null || s.SesionId == Guid.Empty) Error("sesionId", "Obligatorio.");
-        if (s.Paciente is null || !CodigoPaciente().IsMatch(s.Paciente)) Error("paciente", "Formato P-000.");
+        if (s.Paciente is not null && !CodigoPaciente().IsMatch(s.Paciente))
+            Error("paciente", "Formato P-000, o null si la sesión no tiene paciente asignado.");
         if (s.Ejercicio != "caminata_6m") Error("ejercicio", "Solo se admite 'caminata_6m'.");
         if (s.Escena is null || !NombreEscena().IsMatch(s.Escena)) Error("escena", "Obligatoria (1 a 64 caracteres).");
         if (s.VersionApp is null || !VersionApp().IsMatch(s.VersionApp)) Error("versionApp", "Obligatoria.");

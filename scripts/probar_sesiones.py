@@ -48,4 +48,7 @@ s6 = sesion(); s6["nombre"] = "Juan"
 probar("6. Campo extra no permitido", 400, enviar(s6))
 probar("7. Sin token", 401, enviar(sesion(), token=None))
 probar("8. JSON roto", 400, enviar(None, crudo=b'{"versionEsquema":1,'))
+s9 = sesion(None)
+probar("9. Sin paciente asignado (queda sin asignar)", 201, enviar(s9))
 print("sesionId de la prueba 1:", s1["sesionId"])
+print("sesionId sin asignar (prueba 9):", s9["sesionId"])

@@ -90,7 +90,7 @@ app.UseRateLimiter();
 
 app.MapEnrolamiento();
 app.MapToken();
-app.MapPacientes();
+app.MapAsignacion();
 app.MapSesiones();
 
 // Salud: confirma que la API llega a la base. No revela detalles del error.
