@@ -14,3 +14,21 @@ button.secundario { width: auto; padding: .4rem .9rem; background: rgba(255,255,
 .error { color: var(--rojo); }
 .ayuda { color: #55606b; font-size: .95rem; }
 a { color: var(--azul); }
+.barra { gap: 1rem; }
+.barra a { color: #fff; text-decoration: none; }
+.enlaces { flex: 1; display: flex; gap: 1rem; }
+.panel { background: #fff; border-radius: 12px; padding: 1.25rem; margin: 1rem auto; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.menu { display: grid; gap: .6rem; margin: 1rem 0; }
+.menu a, .menu .pronto { display: block; padding: .9rem 1rem; border-radius: 8px; background: #e8f0f6; font-weight: 600; text-decoration: none; }
+.menu .pronto { color: #8a96a1; background: #f0f2f4; }
+.bloque { margin: 1rem 0; border: 1px solid #dde3e8; border-radius: 8px; padding: .75rem 1rem; }
+.bloque summary { cursor: pointer; font-weight: 600; color: var(--azul); }
+.bloque form { margin-top: 1rem; max-width: 420px; }
+.casilla { display: flex; align-items: center; gap: .5rem; font-weight: 400; }
+.casilla input { width: auto; margin: 0; }
+.tabla { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+th, td { text-align: left; padding: .55rem .5rem; border-bottom: 1px solid #e3e8ec; white-space: nowrap; }
+th { color: #55606b; font-weight: 600; }
+.etiqueta { font-size: .75rem; background: #fff3cd; color: #7a5a00; border-radius: 4px; padding: .1rem .35rem; margin-left: .25rem; }
+.exito { color: #1e7b34; }

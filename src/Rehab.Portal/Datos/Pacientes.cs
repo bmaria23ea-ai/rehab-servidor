@@ -1,0 +1,74 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+using MySqlConnector;
+
+namespace Rehab.Portal.Datos;
+
+public sealed record PacienteFila(string Codigo, bool EsPrueba, DateTime? Consentimiento, string? Version, int Sesiones, DateTime? UltimaSesion);
+
+public sealed partial class Pacientes(MySqlDataSource ds)
+{
+    [GeneratedRegex("^P-[0-9]{3,6}$")]
+    private static partial Regex CodigoValido();
+
+    [GeneratedRegex("^[A-Za-z0-9._-]{1,20}$")]
+    private static partial Regex VersionValida();
+
+    public async Task<List<PacienteFila>> ListarAsync()
+    {
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT p.codigo, p.es_prueba, p.consentimiento_utc, p.consentimiento_version, COUNT(s.id), MAX(s.inicio_utc) " +
+            "FROM pacientes p LEFT JOIN sesiones s ON s.paciente_id = p.id " +
+            "GROUP BY p.id ORDER BY p.es_prueba, p.codigo", cn);
+        await using var r = await cmd.ExecuteReaderAsync();
+
+        var lista = new List<PacienteFila>();
+        while (await r.ReadAsync())
+            lista.Add(new PacienteFila(r.GetString(0), r.GetBoolean(1),
+                r.IsDBNull(2) ? null : r.GetDateTime(2), r.IsDBNull(3) ? null : r.GetString(3),
+                Convert.ToInt32(r.GetValue(4)), r.IsDBNull(5) ? null : r.GetDateTime(5)));
+        return lista;
+    }
+
+    // Devuelve un mensaje si algo no es válido; si todo está bien, registra y devuelve null.
+    public async Task<string?> RegistrarAsync(string codigo, bool prueba, string fecha, string version)
+    {
+        codigo = codigo.Trim().ToUpperInvariant();
+        version = version.Trim();
+
+        if (!CodigoValido().IsMatch(codigo))
+            return "Código no válido. Use P- y de 3 a 6 dígitos, por ejemplo P-001.";
+        if (codigo == "P-000")
+            return "P-000 está reservado para pruebas.";
+
+        DateOnly? dia = null;
+        if (!prueba)
+        {
+            if (!DateOnly.TryParseExact(fecha, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+                || d.Year < 2020 || d > Hora.HoyEcuador())
+                return "Indique la fecha del consentimiento (no puede ser futura).";
+            if (!VersionValida().IsMatch(version))
+                return "Indique la versión del formulario de consentimiento, por ejemplo v1.";
+            dia = d;
+        }
+
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand(
+            "INSERT INTO pacientes (codigo, es_prueba, consentimiento_utc, consentimiento_version) " +
+            "VALUES (@codigo, @prueba, @fecha, @version)", cn);
+        cmd.Parameters.AddWithValue("@codigo", codigo);
+        cmd.Parameters.AddWithValue("@prueba", prueba);
+        cmd.Parameters.AddWithValue("@fecha", dia is { } x ? x.ToDateTime(TimeOnly.MinValue) : DBNull.Value);
+        cmd.Parameters.AddWithValue("@version", prueba ? DBNull.Value : version);
+        try
+        {
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (MySqlException ex) when (ex.Number == 1062)
+        {
+            return $"Ya existe el paciente {codigo}.";
+        }
+        return null;
+    }
+}

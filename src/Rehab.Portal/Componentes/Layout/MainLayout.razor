@@ -1,9 +1,12 @@
 @inherits LayoutComponentBase
 
 <header class="barra">
-    <span class="marca">Rehabilitación RV</span>
+    <a class="marca" href="/">Rehabilitación RV</a>
     @if (Http?.User.Identity?.IsAuthenticated == true)
     {
+        <nav class="enlaces">
+            <a href="/pacientes">Pacientes</a>
+        </nav>
         <form method="post" action="/salir">
             <AntiforgeryToken />
             <button class="secundario" type="submit">Salir</button>

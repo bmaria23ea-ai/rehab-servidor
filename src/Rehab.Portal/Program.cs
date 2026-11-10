@@ -37,6 +37,7 @@ builder.WebHost.ConfigureKestrel(o =>
 
 builder.Services.AddSingleton(ds);
 builder.Services.AddSingleton<Terapeutas>();
+builder.Services.AddSingleton<Pacientes>();
 
 builder.Services.AddDataProtection().SetApplicationName("rehab-portal");
 builder.Services.Configure<KeyManagementOptions>(o => o.XmlRepository = new ClavesMariaDb(ds));

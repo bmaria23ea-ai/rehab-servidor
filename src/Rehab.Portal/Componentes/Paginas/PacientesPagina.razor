@@ -1,0 +1,93 @@
+@page "/pacientes"
+@inject Pacientes Repo
+@inject NavigationManager Nav
+
+<PageTitle>Pacientes</PageTitle>
+
+<section class="panel">
+    <h1>Pacientes</h1>
+
+    @if (Nuevo is not null)
+    {
+        <p class="exito">Paciente @Nuevo registrado.</p>
+    }
+
+    <details class="bloque" open="@(error is not null)">
+        <summary>Registrar paciente</summary>
+        <form method="post" @formname="paciente" @onsubmit="RegistrarAsync">
+            <AntiforgeryToken />
+            <label>Código
+                <input name="Datos.Codigo" value="@Datos!.Codigo" placeholder="P-001" autocapitalize="characters" required />
+            </label>
+            <label>Fecha del consentimiento
+                <input name="Datos.Fecha" type="date" value="@Datos.Fecha" />
+            </label>
+            <label>Versión del formulario
+                <input name="Datos.Version" value="@Datos.Version" />
+            </label>
+            <label class="casilla">
+                <input name="Datos.Prueba" type="checkbox" value="true" checked="@Datos.Prueba" />
+                Paciente de prueba (sin consentimiento)
+            </label>
+            @if (error is not null)
+            {
+                <p class="error">@error</p>
+            }
+            <button type="submit">Registrar</button>
+        </form>
+    </details>
+
+    @if (lista.Count == 0)
+    {
+        <p>Todavía no hay pacientes.</p>
+    }
+    else
+    {
+        <div class="tabla">
+            <table>
+                <thead>
+                    <tr><th>Código</th><th>Consentimiento</th><th>Sesiones</th><th>Última</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in lista)
+                    {
+                        <tr>
+                            <td>@p.Codigo @if (p.EsPrueba) { <span class="etiqueta">prueba</span> }</td>
+                            <td>@(p.EsPrueba ? "-" : $"{Hora.Dia(p.Consentimiento)} ({p.Version})")</td>
+                            <td>@p.Sesiones</td>
+                            <td>@Hora.Fecha(p.UltimaSesion)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    [SupplyParameterFromForm] private Formulario? Datos { get; set; }
+    [SupplyParameterFromQuery] private string? Nuevo { get; set; }
+    private List<PacienteFila> lista = [];
+    private string? error;
+
+    public sealed class Formulario
+    {
+        public string Codigo { get; set; } = "";
+        public string Fecha { get; set; } = Hora.HoyEcuador().ToString("yyyy-MM-dd");
+        public string Version { get; set; } = "v1";
+        public bool Prueba { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Datos ??= new();
+        lista = await Repo.ListarAsync();
+    }
+
+    private async Task RegistrarAsync()
+    {
+        error = await Repo.RegistrarAsync(Datos!.Codigo, Datos.Prueba, Datos.Fecha, Datos.Version);
+        if (error is null)
+            Nav.NavigateTo($"/pacientes?nuevo={Uri.EscapeDataString(Datos.Codigo.Trim().ToUpperInvariant())}");
+    }
+}
