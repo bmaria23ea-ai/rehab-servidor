@@ -67,6 +67,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       DB_HOST: db
       DB_PASSWORD_FILE: /run/secrets/db_portal_password
+      Logging__LogLevel__Microsoft.AspNetCore: Warning   # sin rutas (con códigos de pacientes) en los registros
     secrets:
       - db_portal_password
     networks:

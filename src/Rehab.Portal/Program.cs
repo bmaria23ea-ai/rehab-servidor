@@ -130,6 +130,13 @@ app.MapPost("/salir", async (HttpContext ctx) =>
 
 app.MapAccionesVisores();
 app.MapAccionesSesiones();
+app.MapAccionesPacientes();
+
+// Si el navegador abre por GET la dirección de un formulario (Atrás o recargar), vuelve a la página.
+app.MapGet("/visores/{**resto}", () => Results.Redirect("/visores"));
+app.MapGet("/sesiones/{id:long}/asignar", (long id) => Results.Redirect($"/sesiones/{id}"));
+app.MapGet("/pacientes/{codigo}/eliminar", (string codigo) => Results.Redirect($"/pacientes/{codigo}"));
+app.MapGet("/salir", () => Results.Redirect("/"));
 
 app.MapRazorComponents<App>();
 

@@ -31,6 +31,52 @@ public sealed partial class Pacientes(MySqlDataSource ds)
         return lista;
     }
 
+    public async Task<PacienteFila?> BuscarAsync(string codigo) =>
+        (await ListarAsync()).FirstOrDefault(p => p.Codigo == codigo);
+
+    // Derecho de supresión (LOPDP): borra al paciente; sus sesiones y resultados se borran en cascada.
+    public async Task<bool> EliminarAsync(string codigo)
+    {
+        if (codigo == "P-000") return false;
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand("DELETE FROM pacientes WHERE codigo = @codigo", cn);
+        cmd.Parameters.AddWithValue("@codigo", codigo);
+        return await cmd.ExecuteNonQueryAsync() > 0;
+    }
+
+    // Derecho de acceso y portabilidad (LOPDP): todas sus sesiones en CSV para Excel (separador ; y coma decimal).
+    public async Task<string> ExportarCsvAsync(string codigo)
+    {
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand(
+            "SELECT s.inicio_utc, s.ejercicio, s.estado, s.motivo_fin, s.duracion_configurada_s, s.duracion_real_s, " +
+            "c.distancia_m, c.num_paradas, c.tiempo_detenido_s, " +
+            "(SELECT GROUP_CONCAT(CAST(m.distancia_m AS CHAR) ORDER BY m.minuto SEPARATOR ' | ') FROM caminata_minutos m WHERE m.sesion_id = s.id) " +
+            "FROM sesiones s JOIN pacientes p ON p.id = s.paciente_id " +
+            "LEFT JOIN caminata_resultados c ON c.sesion_id = s.id " +
+            "WHERE p.codigo = @codigo ORDER BY s.inicio_utc", cn);
+        cmd.Parameters.AddWithValue("@codigo", codigo);
+        await using var r = await cmd.ExecuteReaderAsync();
+
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("Paciente;Fecha (Ecuador);Ejercicio;Estado;Duración prevista (min);Duración real (min);Distancia (m);Paradas;Tiempo detenido (s);Metros por minuto");
+        while (await r.ReadAsync())
+        {
+            string? Dec(int i) => r.IsDBNull(i) ? "" : Textos.Num(Convert.ToDecimal(r.GetValue(i)), "0.##");
+            csv.Append(codigo).Append(';')
+               .Append(Hora.FechaHora(r.GetDateTime(0))).Append(';')
+               .Append(Textos.Ejercicio(r.GetString(1))).Append(';')
+               .Append(Textos.Motivo(r.GetString(3))).Append(';')
+               .Append(Textos.Num(Convert.ToDecimal(r.GetValue(4)) / 60m, "0.##")).Append(';')
+               .Append(Textos.Num(Convert.ToDecimal(r.GetValue(5)) / 60m, "0.##")).Append(';')
+               .Append(Dec(6)).Append(';')
+               .Append(r.IsDBNull(7) ? "" : r.GetValue(7).ToString()).Append(';')
+               .Append(Dec(8)).Append(';')
+               .AppendLine(r.IsDBNull(9) ? "" : r.GetString(9).Replace('.', ','));
+        }
+        return csv.ToString();
+    }
+
     // Devuelve un mensaje si algo no es válido; si todo está bien, registra y devuelve null.
     public async Task<string?> RegistrarAsync(string codigo, bool prueba, string fecha, string version)
     {

@@ -11,6 +11,10 @@
     {
         <p class="exito">Paciente @Nuevo registrado.</p>
     }
+    @if (Eliminado is not null)
+    {
+        <p class="exito">Paciente y datos eliminados.</p>
+    }
 
     <details class="bloque" open="@(error is not null)">
         <summary>Registrar paciente</summary>
@@ -52,7 +56,7 @@
                     @foreach (var p in lista)
                     {
                         <tr>
-                            <td><a href="/sesiones?paciente=@p.Codigo">@p.Codigo</a> @if (p.EsPrueba) { <span class="etiqueta">prueba</span> }</td>
+                            <td><a href="/pacientes/@p.Codigo">@p.Codigo</a> @if (p.EsPrueba) { <span class="etiqueta">prueba</span> }</td>
                             <td>@(p.EsPrueba ? "-" : $"{Hora.Dia(p.Consentimiento)} ({p.Version})")</td>
                             <td>@p.Sesiones</td>
                             <td>@Hora.Fecha(p.UltimaSesion)</td>
@@ -67,6 +71,7 @@
 @code {
     [SupplyParameterFromForm] private Formulario? Datos { get; set; }
     [SupplyParameterFromQuery] private string? Nuevo { get; set; }
+    [SupplyParameterFromQuery] private string? Eliminado { get; set; }
     private List<PacienteFila> lista = [];
     private string? error;
 

@@ -1,0 +1,57 @@
+@page "/pacientes/{Codigo}"
+@inject Pacientes Repo
+
+<PageTitle>@Codigo</PageTitle>
+
+<section class="panel">
+    <p><a href="/pacientes">← Pacientes</a></p>
+
+    @if (p is null)
+    {
+        <p>El paciente no existe.</p>
+    }
+    else
+    {
+        <h1>@p.Codigo @if (p.EsPrueba) { <span class="etiqueta">prueba</span> }</h1>
+
+        @if (Error == "confirmar") { <p class="error">Escriba el código del paciente para confirmar.</p> }
+        @if (Error == "eliminar") { <p class="error">No se pudo eliminar.</p> }
+
+        <div class="resumen">
+            <div><span>Sesiones</span><strong>@p.Sesiones</strong></div>
+            <div><span>Última sesión</span><strong>@Hora.Fecha(p.UltimaSesion)</strong></div>
+        </div>
+        @if (!p.EsPrueba)
+        {
+            <p class="ayuda">Consentimiento: @Hora.Dia(p.Consentimiento) (formulario @p.Version)</p>
+        }
+
+        <nav class="menu">
+            <a href="/sesiones?paciente=@p.Codigo">Ver sus sesiones</a>
+            <a href="/pacientes/@p.Codigo/exportar">Descargar sus datos (Excel)</a>
+        </nav>
+
+        @if (p.Codigo != "P-000")
+        {
+            <details class="bloque avanzado">
+                <summary class="peligro">Eliminar paciente y todos sus datos</summary>
+                <p class="ayuda">Se usa cuando el paciente retira su consentimiento o pide borrar sus datos. Se borran el paciente y todas sus sesiones y no se puede deshacer. Descargue antes sus datos si los necesita.</p>
+                <form method="post" action="/pacientes/@p.Codigo/eliminar">
+                    <AntiforgeryToken />
+                    <label>Escriba <strong>@p.Codigo</strong> para confirmar
+                        <input name="confirmar" autocomplete="off" autocapitalize="characters" required />
+                    </label>
+                    <button class="rojo" type="submit">Eliminar definitivamente</button>
+                </form>
+            </details>
+        }
+    }
+</section>
+
+@code {
+    [Parameter] public string Codigo { get; set; } = "";
+    [SupplyParameterFromQuery] private string? Error { get; set; }
+    private PacienteFila? p;
+
+    protected override async Task OnInitializedAsync() => p = await Repo.BuscarAsync(Codigo.ToUpperInvariant());
+}
