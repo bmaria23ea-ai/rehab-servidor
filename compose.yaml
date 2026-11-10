@@ -12,6 +12,7 @@ services:
     secrets:
       - db_root_password
       - db_app_password
+      - db_portal_password
       - mariadb_keyfile
     volumes:
       - db_data:/var/lib/mysql                                  # datos (cifrados)
@@ -96,6 +97,8 @@ secrets:
     file: ./secrets/db_root_password.txt
   db_app_password:
     file: ./secrets/db_app_password.txt
+  db_portal_password:
+    file: ./secrets/db_portal_password.txt
   mariadb_keyfile:
     file: ./secrets/mariadb_keyfile.txt
   tls_cert:
