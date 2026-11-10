@@ -48,3 +48,19 @@ button.rojo { background: var(--rojo); }
 h2 { font-size: 1.05rem; margin: 1.2rem 0 .3rem; }
 .avanzado { margin-top: 1.5rem; }
 .avanzado form { display: grid; gap: .6rem; }
+.sesion { display: grid; gap: .3rem; padding: .8rem 1rem; margin: .7rem 0; border: 1px solid #dde3e8; border-radius: 10px; color: inherit; text-decoration: none; }
+.sesion .cabeza { display: flex; align-items: center; gap: .4rem; }
+.sesion .fecha { margin-left: auto; color: #55606b; font-size: .9rem; }
+.sesion .estado { justify-self: start; }
+.resumen { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: 1rem 0; }
+.resumen div { background: #f4f7fa; border-radius: 8px; padding: .7rem; display: grid; }
+.resumen span { color: #55606b; font-size: .85rem; }
+.resumen strong { font-size: 1.3rem; }
+.barras { display: grid; gap: .4rem; }
+.barra-fila { display: grid; grid-template-columns: 3.5rem 1fr 4.5rem; align-items: center; gap: .5rem; font-size: .9rem; }
+.barra-fila span:last-child { text-align: right; }
+progress { width: 100%; height: .9rem; accent-color: var(--azul); }
+@media (max-width: 640px) {
+  .barra .marca { display: none; }
+  .enlaces { gap: .9rem; font-size: .95rem; }
+}

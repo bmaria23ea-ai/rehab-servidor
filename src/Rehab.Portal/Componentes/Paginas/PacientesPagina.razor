@@ -52,7 +52,7 @@
                     @foreach (var p in lista)
                     {
                         <tr>
-                            <td>@p.Codigo @if (p.EsPrueba) { <span class="etiqueta">prueba</span> }</td>
+                            <td><a href="/sesiones?paciente=@p.Codigo">@p.Codigo</a> @if (p.EsPrueba) { <span class="etiqueta">prueba</span> }</td>
                             <td>@(p.EsPrueba ? "-" : $"{Hora.Dia(p.Consentimiento)} ({p.Version})")</td>
                             <td>@p.Sesiones</td>
                             <td>@Hora.Fecha(p.UltimaSesion)</td>

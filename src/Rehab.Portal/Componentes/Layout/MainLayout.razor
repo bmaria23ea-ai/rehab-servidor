@@ -5,8 +5,9 @@
     @if (Http?.User.Identity?.IsAuthenticated == true)
     {
         <nav class="enlaces">
-            <a href="/pacientes">Pacientes</a>
+            <a href="/sesiones">Sesiones</a>
             <a href="/visores">Gafas</a>
+            <a href="/pacientes">Pacientes</a>
         </nav>
         <form method="post" action="/salir">
             <AntiforgeryToken />

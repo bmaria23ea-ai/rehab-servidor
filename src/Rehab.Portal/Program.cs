@@ -40,6 +40,7 @@ builder.Services.AddSingleton(ds);
 builder.Services.AddSingleton<Terapeutas>();
 builder.Services.AddSingleton<Pacientes>();
 builder.Services.AddSingleton<Visores>();
+builder.Services.AddSingleton<Sesiones>();
 
 builder.Services.AddDataProtection().SetApplicationName("rehab-portal");
 builder.Services.Configure<KeyManagementOptions>(o => o.XmlRepository = new ClavesMariaDb(ds));
@@ -128,6 +129,7 @@ app.MapPost("/salir", async (HttpContext ctx) =>
 }).ExigirToken();
 
 app.MapAccionesVisores();
+app.MapAccionesSesiones();
 
 app.MapRazorComponents<App>();
 
