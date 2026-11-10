@@ -57,6 +57,32 @@ services:
       - no-new-privileges:true
     mem_limit: 256m
 
+  portal:
+    build:
+      context: .
+      dockerfile: src/Rehab.Portal/Dockerfile
+    image: rehab-portal:dev
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DB_HOST: db
+      DB_PASSWORD_FILE: /run/secrets/db_portal_password
+    secrets:
+      - db_portal_password
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+
   proxy:
     image: nginxinc/nginx-unprivileged:1.30-alpine
     restart: unless-stopped
