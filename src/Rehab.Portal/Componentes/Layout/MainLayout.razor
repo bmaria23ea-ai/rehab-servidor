@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+<header class="barra">
+    <span class="marca">Rehabilitación RV</span>
+    @if (Http?.User.Identity?.IsAuthenticated == true)
+    {
+        <form method="post" action="/salir">
+            <AntiforgeryToken />
+            <button class="secundario" type="submit">Salir</button>
+        </form>
+    }
+</header>
+<main class="contenido">
+    @Body
+</main>
+
+@code {
+    [CascadingParameter] private HttpContext? Http { get; set; }
+}

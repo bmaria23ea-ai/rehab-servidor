@@ -1,0 +1,13 @@
+@page "/"
+
+<PageTitle>Inicio</PageTitle>
+
+<section class="tarjeta">
+    <h1>Hola, @Http.User.Identity?.Name</h1>
+    <p>Las secciones de pacientes, visores y sesiones se agregarán en los siguientes pasos.</p>
+    <a href="/cambiar-clave">Cambiar contraseña</a>
+</section>
+
+@code {
+    [CascadingParameter] private HttpContext Http { get; set; } = default!;
+}

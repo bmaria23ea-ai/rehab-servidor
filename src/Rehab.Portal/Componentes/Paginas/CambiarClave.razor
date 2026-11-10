@@ -1,0 +1,63 @@
+@page "/cambiar-clave"
+@inject Terapeutas Repo
+@inject NavigationManager Nav
+
+<PageTitle>Cambiar contraseña</PageTitle>
+
+<section class="tarjeta">
+    <h1>Cambiar contraseña</h1>
+    <p class="ayuda">Al menos @Contrasenas.Minimo caracteres. Puede ser una frase, por ejemplo <em>caminata de la tarde</em>. No caduca.</p>
+    <form method="post" @formname="cambiar" @onsubmit="CambiarAsync">
+        <AntiforgeryToken />
+        <label>Contraseña actual
+            <input name="Datos.Actual" type="password" autocomplete="current-password" required />
+        </label>
+        <label>Nueva contraseña
+            <input name="Datos.Nueva" type="password" autocomplete="new-password" maxlength="@Contrasenas.Maximo" required />
+        </label>
+        <label>Repita la nueva
+            <input name="Datos.Repetir" type="password" autocomplete="new-password" maxlength="@Contrasenas.Maximo" required />
+        </label>
+        @if (error is not null)
+        {
+            <p class="error">@error</p>
+        }
+        <button type="submit">Guardar</button>
+    </form>
+</section>
+
+@code {
+    [CascadingParameter] private HttpContext Http { get; set; } = default!;
+    [SupplyParameterFromForm] private Formulario? Datos { get; set; }
+    private string? error;
+
+    public sealed class Formulario
+    {
+        public string Actual { get; set; } = "";
+        public string Nueva { get; set; } = "";
+        public string Repetir { get; set; } = "";
+    }
+
+    protected override void OnInitialized() => Datos ??= new();
+
+    private async Task CambiarAsync()
+    {
+        var t = await Repo.BuscarAsync(Http.User.Identity!.Name!);
+        if (t is null) { Nav.NavigateTo("/entrar"); return; }
+
+        if (Contrasenas.Verificar(t.Hash, Datos!.Actual) == PasswordVerificationResult.Failed)
+            error = "La contraseña actual no es correcta.";
+        else if (Datos.Nueva != Datos.Repetir)
+            error = "Las contraseñas nuevas no coinciden.";
+        else if (Datos.Nueva == Datos.Actual)
+            error = "La nueva contraseña debe ser distinta de la actual.";
+        else
+            error = Contrasenas.Problema(Datos.Nueva, t.Usuario);
+
+        if (error is not null) return;
+
+        string sello = await Repo.CambiarClaveAsync(t.Id, Datos.Nueva);
+        await Sesion.EntrarAsync(Http, t, sello, temporal: false);
+        Nav.NavigateTo("/");
+    }
+}

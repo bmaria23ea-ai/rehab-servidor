@@ -1,0 +1,64 @@
+@page "/entrar"
+@attribute [AllowAnonymous]
+@inject Terapeutas Repo
+@inject NavigationManager Nav
+
+<PageTitle>Entrar</PageTitle>
+
+<section class="tarjeta">
+    <h1>Portal del terapeuta</h1>
+    <form method="post" @formname="entrar" @onsubmit="EntrarAsync">
+        <AntiforgeryToken />
+        <label>Usuario
+            <input name="Datos.Usuario" value="@Datos!.Usuario" autocomplete="username" autocapitalize="none" required />
+        </label>
+        <label>Contraseña
+            <input name="Datos.Clave" type="password" autocomplete="current-password" required />
+        </label>
+        @if (error is not null)
+        {
+            <p class="error">@error</p>
+        }
+        <button type="submit">Entrar</button>
+    </form>
+</section>
+
+@code {
+    [CascadingParameter] private HttpContext Http { get; set; } = default!;
+    [SupplyParameterFromForm] private Formulario? Datos { get; set; }
+    private string? error;
+
+    public sealed class Formulario
+    {
+        public string Usuario { get; set; } = "";
+        public string Clave { get; set; } = "";
+    }
+
+    protected override void OnInitialized() => Datos ??= new();
+
+    private async Task EntrarAsync()
+    {
+        var t = await Repo.BuscarAsync(Datos!.Usuario.Trim().ToLowerInvariant());
+        bool correcta = false;
+
+        if (t is null || !t.Activo || t.Bloqueado)
+        {
+            Contrasenas.Verificar(Contrasenas.HashFalso, Datos.Clave);
+        }
+        else
+        {
+            correcta = Contrasenas.Verificar(t.Hash, Datos.Clave) != PasswordVerificationResult.Failed;
+            if (!correcta) await Repo.FalloAsync(t.Id);
+        }
+
+        if (!correcta || t is null)
+        {
+            error = $"Usuario o contraseña incorrectos. Tras {Terapeutas.MaxIntentos} intentos fallidos la cuenta se bloquea {Terapeutas.MinutosBloqueo} minutos.";
+            return;
+        }
+
+        await Repo.AccesoAsync(t.Id);
+        await Sesion.EntrarAsync(Http, t);
+        Nav.NavigateTo(t.DebeCambiar ? "/cambiar-clave" : "/");
+    }
+}

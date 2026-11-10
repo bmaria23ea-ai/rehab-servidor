@@ -26,6 +26,9 @@ public static class Contrasenas
 
     public static string Hash(string contrasena) => Hasher.HashPassword(Usuario, contrasena);
 
+    // Para comparar contra algo cuando el usuario no existe y no revelar por el tiempo de respuesta.
+    public static readonly string HashFalso = Hash(Temporal());
+
     public static PasswordVerificationResult Verificar(string hash, string contrasena) =>
         Hasher.VerifyHashedPassword(Usuario, hash, contrasena);
 

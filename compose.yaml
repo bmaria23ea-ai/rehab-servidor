@@ -88,6 +88,7 @@ services:
     restart: unless-stopped
     ports:
       - "${HTTPS_PORT:-443}:8443"        # único puerto publicado (443 por defecto)
+      - "${PORTAL_PORT:-8444}:8444"      # portal de terapeutas (en la fase 5, solo por WireGuard)
     environment:
       NGINX_ENTRYPOINT_QUIET_LOGS: "1"
     volumes:
@@ -100,6 +101,7 @@ services:
       - backend
     depends_on:
       - api
+      - portal
     # Salud de toda la cadena (Nginx -> API -> MariaDB) por el puerto interno 8081
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8081/salud"]
