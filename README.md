@@ -22,6 +22,7 @@ La base de datos, la API y el portal viven en una red interna de Docker sin sali
 - Docker Engine con el plugin Compose (probado con Docker 29.9 y Compose 5.7 en Ubuntu 24.04).
 - SDK de .NET 10, solo para compilar fuera de Docker.
 - OpenSSL y Python 3, para generar secretos y ejecutar las pruebas.
+- [age](https://github.com/FiloSottile/age) (`sudo apt install age`), para cifrar las copias de seguridad.
 
 ## Puesta en marcha
 
@@ -144,6 +145,39 @@ Las sesiones se identifican con un `sesionId` generado en el visor: si el visor 
 
 Las sesiones guardan la duración en segundos; `duracion_configurada_min` y `duracion_real_min` la muestran en minutos (columnas calculadas).
 
+## Copias de seguridad
+
+`scripts/respaldo.sh` exporta la base con `mariadb-dump`, la comprime y la cifra con age usando solo la llave pública; la copia nunca queda sin cifrar en disco. Guarda una copia local y otra externa, y borra las de más de `RESPALDO_DIAS` días.
+
+**Llaves (una sola vez):**
+
+```bash
+umask 077
+age-keygen -o ~/llave_privada_respaldos.txt
+age-keygen -y ~/llave_privada_respaldos.txt > secrets/respaldo_publica.txt
+```
+
+La llave privada se guarda fuera del servidor (USB y gestor de contraseñas) y se borra del servidor. Sin ella las copias no se pueden abrir.
+
+**Variables en `.env`:**
+
+| Variable | Uso | Por defecto |
+|---|---|---|
+| `RESPALDO_LOCAL` | Carpeta local | `~/respaldos-rehab` |
+| `RESPALDO_DESTINO` | Carpeta externa (p. ej. OneDrive) | sin copia externa |
+| `RESPALDO_DIAS` | Días de retención | `30` |
+
+**Uso:**
+
+```bash
+./scripts/respaldo.sh
+./scripts/probar_restauracion.sh /ruta/llave_privada_respaldos.txt
+```
+
+`probar_restauracion.sh` descifra la copia más reciente en un MariaDB temporal en RAM y sin red, compara las filas de cada tabla con la base actual y lo elimina al terminar.
+
+Los pacientes eliminados siguen en las copias anteriores hasta que caducan; con la retención por defecto desaparecen de todas en 30 días.
+
 ## Pruebas
 
 | Script | Prueba |
@@ -166,6 +200,8 @@ URL=https://<IP>:<puerto>/api CA_FILE=secrets/tls/ca.crt TOKEN=<jwt> python3 scr
 - Validación estricta de cada campo de las sesiones; los campos desconocidos se rechazan.
 - Portal: contraseñas de 10 caracteres o más según NIST SP 800-63B-4, con hash PBKDF2 de ASP.NET Core Identity; bloqueo de 15 minutos tras 5 intentos y límite de tasa en el ingreso.
 - Sesión de 30 días en cookie `__Host-` (solo HTTPS, `HttpOnly`, `SameSite=Strict`); cambiar la contraseña o desactivar la cuenta la cierra en todos los equipos.
-- Token antifalsificación en cada formulario, CSP sin scripts y `Cache-Control: no-store` en las páginas con datos.
+- Token antifalsificación en cada formulario, CSP que solo admite scripts propios y `Cache-Control: no-store` en las páginas con datos.
+- Registro de auditoría de solo inserción (triggers impiden modificarlo o borrarlo), visible en el portal.
+- Copias de seguridad cifradas con age; el servidor solo tiene la llave pública.
 - Sin códigos de pacientes en los registros: Nginx no guarda accesos del portal y el portal solo registra advertencias.
 - Nginx vuelve a resolver los nombres de los contenedores con el DNS de Docker cuando se recrean.
