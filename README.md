@@ -9,7 +9,7 @@ Los pacientes se identifican solo con un código seudónimo (`P-001`). El sistem
 | Servicio | Imagen | Función |
 |---|---|---|
 | `proxy` | `nginxinc/nginx-unprivileged:1.30-alpine` | Único servicio publicado. HTTPS con TLS 1.3 y 1.2 (solo suites ECDHE con AES-GCM o ChaCha20), límite de tasa y cabeceras de seguridad |
-| `api` | Se construye desde `src/Rehab.Api` (ASP.NET Core 10) | Enrolamiento de visores, tokens JWT, lista de pacientes y recepción de sesiones |
+| `api` | Se construye desde `src/Rehab.Api` (ASP.NET Core 10) | Vinculación de visores, tokens JWT, asignación de pacientes y recepción de sesiones |
 | `db` | `mariadb:12.3` | Base de datos con cifrado en reposo. No se publica fuera de Docker |
 
 La base de datos y la API viven en una red interna de Docker sin salida a internet. Todas las contraseñas y claves se entregan como Docker secrets y nunca se guardan en el repositorio.
@@ -66,8 +66,7 @@ Los comandos se ejecutan dentro del contenedor de la API. No están disponibles 
 
 | Comando | Función |
 |---|---|
-| `visor-nuevo "<nombre>"` | Registra un visor y muestra un código de enrolamiento (10 minutos, un solo uso) |
-| `visor-codigo <id>` | Genera un código nuevo para un visor pendiente |
+| `visor-aprobar <código> "<nombre>"` | Vincula las gafas que muestran ese código (vence a los 10 minutos) |
 | `visor-revocar <id>` | Bloquea un visor de inmediato |
 | `visor-lista` | Lista los visores y su estado |
 | `paciente-nuevo <código> <AAAA-MM-DD> <versión>` | Registra un paciente real con la fecha y versión de su consentimiento |
@@ -82,7 +81,21 @@ Los comandos se ejecutan dentro del contenedor de la API. No están disponibles 
 Ejemplo:
 
 ```bash
-docker compose exec api dotnet Rehab.Api.dll visor-nuevo "Quest 3 - 01"
+docker compose exec api dotnet Rehab.Api.dll visor-aprobar K7QM-4XPA "Quest 3 - 01"
+```
+
+### Vincular un visor
+
+1. En las gafas, pulsar **Vincular visor**: aparece un código.
+2. En el servidor, aprobarlo con `visor-aprobar`.
+3. Las gafas se vinculan solas en unos segundos. Solo se hace una vez; desinstalar la app obliga a repetirlo.
+
+### Migraciones
+
+En una instalación nueva, MariaDB aplica `db/init/` en orden. En una base existente, cada migración nueva se aplica una vez con root:
+
+```bash
+docker compose exec -T db sh -c 'MYSQL_PWD="$(cat /run/secrets/db_root_password)" mariadb -uroot rehab' < db/init/0X_nombre.sql
 ```
 
 ## API
@@ -91,7 +104,8 @@ Todas las rutas se publican bajo `/api/` a través de Nginx.
 
 | Método y ruta | Autenticación | Función |
 |---|---|---|
-| `POST /api/visores/enrolar` | Código de enrolamiento | Canjea el código por el secreto propio del visor |
+| `POST /api/visores/solicitar` | Ninguna | Crea una solicitud de vinculación y devuelve el código a mostrar |
+| `POST /api/visores/consultar` | Identificador de la solicitud | `202` mientras no se aprueba; `200` con el secreto del visor, una sola vez |
 | `POST /api/token` | Id y secreto del visor | Entrega un JWT válido por 15 minutos |
 | `GET /api/asignacion` | JWT | Paciente asignado al visor (200) o ninguno (204) |
 | `POST /api/sesiones` | JWT | Recibe una sesión (formato `versionEsquema: 1`). Con `"paciente": null` queda sin asignar |
@@ -100,11 +114,17 @@ Todas las rutas se publican bajo `/api/` a través de Nginx.
 
 Las sesiones se identifican con un `sesionId` generado en el visor: si el visor reenvía una sesión ya guardada, el servidor responde `200` con estado `duplicada` y no la guarda dos veces.
 
+Las sesiones guardan la duración en segundos; `duracion_configurada_min` y `duracion_real_min` la muestran en minutos (columnas calculadas).
+
 ## Pruebas
 
-`scripts/probar_sesiones.py` simula un visor y prueba la recepción de sesiones:
+| Script | Prueba |
+|---|---|
+| `scripts/probar_vinculacion.py` | Solicitud, aprobación y consulta de la vinculación |
+| `scripts/probar_sesiones.py` | Recepción y validación de sesiones (requiere `TOKEN`) |
 
 ```bash
+URL=https://<IP>:<puerto>/api CA_FILE=secrets/tls/ca.crt python3 scripts/probar_vinculacion.py
 URL=https://<IP>:<puerto>/api CA_FILE=secrets/tls/ca.crt TOKEN=<jwt> python3 scripts/probar_sesiones.py
 ```
 
@@ -113,6 +133,6 @@ URL=https://<IP>:<puerto>/api CA_FILE=secrets/tls/ca.crt TOKEN=<jwt> python3 scr
 - Contraseñas, claves y certificados solo como Docker secrets en `secrets/`, excluida de Git.
 - MariaDB con todas las tablas cifradas (`innodb_encrypt_tables = FORCE`) y un usuario de aplicación con permisos mínimos.
 - Contenedores con sistema de archivos de solo lectura, sin privilegios de Linux y con memoria limitada.
-- Códigos de enrolamiento y secretos de los visores guardados solo como hash SHA-256.
-- Comparación en tiempo constante, límite de tasa por IP y revocación inmediata de visores.
+- Códigos de vinculación y secretos de los visores guardados solo como hash SHA-256; el secreto se entrega una sola vez.
+- Comparación en tiempo constante, límite de tasa por IP, máximo de solicitudes de vinculación activas y revocación inmediata de visores.
 - Validación estricta de cada campo de las sesiones; los campos desconocidos se rechazan.
