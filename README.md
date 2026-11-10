@@ -4,15 +4,18 @@ Servidor que recibe y guarda las sesiones de rehabilitación enviadas por los vi
 
 Los pacientes se identifican solo con un código seudónimo (`P-001`). El sistema nunca guarda nombres ni otros datos personales.
 
+Los terapeutas revisan las sesiones desde un portal web, también desde el celular.
+
 ## Arquitectura
 
 | Servicio | Imagen | Función |
 |---|---|---|
 | `proxy` | `nginxinc/nginx-unprivileged:1.30-alpine` | Único servicio publicado. HTTPS con TLS 1.3 y 1.2 (solo suites ECDHE con AES-GCM o ChaCha20), límite de tasa y cabeceras de seguridad |
 | `api` | Se construye desde `src/Rehab.Api` (ASP.NET Core 10) | Vinculación de visores, tokens JWT, asignación de pacientes y recepción de sesiones |
+| `portal` | Se construye desde `src/Rehab.Portal` (ASP.NET Core 10, Blazor SSR) | Portal de terapeutas: sesiones, gafas y pacientes |
 | `db` | `mariadb:12.3` | Base de datos con cifrado en reposo. No se publica fuera de Docker |
 
-La base de datos y la API viven en una red interna de Docker sin salida a internet. Todas las contraseñas y claves se entregan como Docker secrets y nunca se guardan en el repositorio.
+La base de datos, la API y el portal viven en una red interna de Docker sin salida a internet. Todas las contraseñas y claves se entregan como Docker secrets y nunca se guardan en el repositorio.
 
 ## Requisitos
 
@@ -30,6 +33,7 @@ Todos los comandos se ejecutan en la carpeta del proyecto.
 mkdir -p secrets && chmod 700 secrets
 openssl rand -base64 32 | tr -d '\n' > secrets/db_root_password.txt
 openssl rand -base64 32 | tr -d '\n' > secrets/db_app_password.txt
+openssl rand -base64 32 | tr -d '\n' > secrets/db_portal_password.txt
 echo "1;$(openssl rand -hex 32)" > secrets/mariadb_keyfile.txt
 openssl rand -base64 64 | tr -d '\n' > secrets/jwt_key.txt
 chmod 444 secrets/*.txt
@@ -43,10 +47,10 @@ chmod 444 secrets/*.txt
 
 El script muestra el pin SPKI de la clave del servidor, que la app de Unity usa para verificar que se conecta al servidor correcto.
 
-**3. Elegir el puerto HTTPS** (opcional, por defecto 443):
+**3. Elegir los puertos** (opcional; API en 443 y portal en 8444 por defecto):
 
 ```bash
-cp .env.example .env    # cambiar HTTPS_PORT si el 443 está ocupado
+cp .env.example .env    # HTTPS_PORT y PORTAL_PORT
 ```
 
 **4. Levantar los servicios:**
@@ -98,6 +102,30 @@ En una instalación nueva, MariaDB aplica `db/init/` en orden. En una base exist
 docker compose exec -T db sh -c 'MYSQL_PWD="$(cat /run/secrets/db_root_password)" mariadb -uroot rehab' < db/init/0X_nombre.sql
 ```
 
+## Portal de terapeutas
+
+Se abre en `https://<IP-del-servidor>:8444`. El dispositivo debe tener instalada la CA local (`secrets/tls/ca.crt`).
+
+| Página | Función |
+|---|---|
+| Sesiones | Sesiones por paciente o sin asignar, con el detalle minuto a minuto |
+| Gafas | Vincular gafas, asignarles un paciente y desactivarlas |
+| Pacientes | Registrar pacientes, descargar sus datos (CSV para Excel) y eliminarlos con todas sus sesiones |
+
+Las cuentas se crean desde la terminal del servidor; el sistema muestra una contraseña temporal que se cambia al primer ingreso:
+
+| Comando | Función |
+|---|---|
+| `terapeuta-nuevo <usuario>` | Crea la cuenta con contraseña temporal |
+| `terapeuta-restablecer <usuario>` | Nueva contraseña temporal y desbloqueo |
+| `terapeuta-cerrar-sesiones <usuario>` | Cierra la sesión en todos sus equipos |
+| `terapeuta-desactivar <usuario>` / `terapeuta-activar <usuario>` | Bloquea o habilita la cuenta |
+| `terapeuta-lista` | Lista las cuentas |
+
+```bash
+docker compose exec portal dotnet Rehab.Portal.dll terapeuta-nuevo mlopez
+```
+
 ## API
 
 Todas las rutas se publican bajo `/api/` a través de Nginx.
@@ -136,3 +164,8 @@ URL=https://<IP>:<puerto>/api CA_FILE=secrets/tls/ca.crt TOKEN=<jwt> python3 scr
 - Códigos de vinculación y secretos de los visores guardados solo como hash SHA-256; el secreto se entrega una sola vez.
 - Comparación en tiempo constante, límite de tasa por IP, máximo de solicitudes de vinculación activas y revocación inmediata de visores.
 - Validación estricta de cada campo de las sesiones; los campos desconocidos se rechazan.
+- Portal: contraseñas de 10 caracteres o más según NIST SP 800-63B-4, con hash PBKDF2 de ASP.NET Core Identity; bloqueo de 15 minutos tras 5 intentos y límite de tasa en el ingreso.
+- Sesión de 30 días en cookie `__Host-` (solo HTTPS, `HttpOnly`, `SameSite=Strict`); cambiar la contraseña o desactivar la cuenta la cierra en todos los equipos.
+- Token antifalsificación en cada formulario, CSP sin scripts y `Cache-Control: no-store` en las páginas con datos.
+- Sin códigos de pacientes en los registros: Nginx no guarda accesos del portal y el portal solo registra advertencias.
+- Nginx vuelve a resolver los nombres de los contenedores con el DNS de Docker cuando se recrean.

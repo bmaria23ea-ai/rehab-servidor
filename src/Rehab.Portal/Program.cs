@@ -97,6 +97,12 @@ app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = c => c.Context.Response.Headers.CacheControl = "no-cache",   // siempre la versión actual del CSS
 });
+// Datos de pacientes: el navegador no los guarda en caché
+app.Use((ctx, next) =>
+{
+    ctx.Response.Headers.CacheControl = "no-store";
+    return next();
+});
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
