@@ -90,7 +90,10 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler("/error", createScopeForErrors: true);
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = c => c.Context.Response.Headers.CacheControl = "no-cache",   // siempre la versión actual del CSS
+});
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
