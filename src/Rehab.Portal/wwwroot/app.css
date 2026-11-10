@@ -32,3 +32,19 @@ th, td { text-align: left; padding: .55rem .5rem; border-bottom: 1px solid #e3e8
 th { color: #55606b; font-weight: 600; }
 .etiqueta { font-size: .75rem; background: #fff3cd; color: #7a5a00; border-radius: 4px; padding: .1rem .35rem; margin-left: .25rem; }
 .exito { color: #1e7b34; }
+.ficha { border: 1px solid #dde3e8; border-radius: 10px; padding: .9rem 1rem; margin: .9rem 0; }
+.ficha header { display: flex; justify-content: space-between; align-items: center; }
+.ficha p { margin: .5rem 0; }
+.estado { font-size: .8rem; border-radius: 4px; padding: .15rem .45rem; }
+.estado.activo { background: #dff3e4; color: #1e7b34; }
+.estado.pendiente { background: #fff3cd; color: #7a5a00; }
+.fila { display: flex; gap: .5rem; margin: .6rem 0; }
+.fila select { flex: 1; }
+.fila button { width: auto; padding: .6rem 1rem; }
+select { padding: .6rem; font-size: 1rem; border: 1px solid #c4ccd4; border-radius: 8px; background: #fff; }
+button.claro { background: #e8f0f6; color: var(--azul); }
+button.rojo { background: var(--rojo); }
+.peligro { color: var(--rojo); cursor: pointer; font-size: .9rem; margin-top: .4rem; }
+h2 { font-size: 1.05rem; margin: 1.2rem 0 .3rem; }
+.avanzado { margin-top: 1.5rem; }
+.avanzado form { display: grid; gap: .6rem; }

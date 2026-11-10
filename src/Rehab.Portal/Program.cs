@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using MySqlConnector;
+using Rehab.Portal.Acciones;
 using Rehab.Portal.Admin;
 using Rehab.Portal.Componentes;
 using Rehab.Portal.Datos;
@@ -38,6 +39,7 @@ builder.WebHost.ConfigureKestrel(o =>
 builder.Services.AddSingleton(ds);
 builder.Services.AddSingleton<Terapeutas>();
 builder.Services.AddSingleton<Pacientes>();
+builder.Services.AddSingleton<Visores>();
 
 builder.Services.AddDataProtection().SetApplicationName("rehab-portal");
 builder.Services.Configure<KeyManagementOptions>(o => o.XmlRepository = new ClavesMariaDb(ds));
@@ -123,7 +125,9 @@ app.MapPost("/salir", async (HttpContext ctx) =>
 {
     await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/entrar");
-});
+}).ExigirToken();
+
+app.MapAccionesVisores();
 
 app.MapRazorComponents<App>();
 

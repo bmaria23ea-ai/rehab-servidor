@@ -1,0 +1,138 @@
+@page "/visores"
+@inject Visores Repo
+
+<PageTitle>Gafas</PageTitle>
+
+<section class="panel">
+    <h1>Gafas</h1>
+    <p class="ayuda">Elija el paciente antes de colocarle las gafas.</p>
+
+    @if (Ok is not null && Mensajes.TryGetValue(Ok, out var ok))
+    {
+        <p class="exito">@ok</p>
+    }
+    @if (Error is not null && Errores.TryGetValue(Error, out var error))
+    {
+        <p class="error">@error</p>
+    }
+
+    @if (lista.Count == 0)
+    {
+        <p>No hay gafas vinculadas. Use <em>Opciones avanzadas</em> más abajo.</p>
+    }
+
+    @foreach (var v in lista)
+    {
+        <article class="ficha">
+            <header><strong>@v.Nombre</strong></header>
+
+            @if (v.Estado == "activo")
+            {
+                <p>
+                    @if (v.Paciente is not null)
+                    {
+                        <span>Paciente: <strong>@v.Paciente</strong></span>
+                    }
+                    else
+                    {
+                        <span class="ayuda">Sin paciente</span>
+                    }
+                </p>
+
+                <form method="post" action="/visores/@v.Id/asignar" class="fila">
+                    <AntiforgeryToken />
+                    <select name="paciente" required>
+                        <option value="" disabled selected="@(v.Paciente is null)">Elegir paciente</option>
+                        @foreach (var c in pacientes)
+                        {
+                            <option value="@c" selected="@(c == v.Paciente)">@c</option>
+                        }
+                    </select>
+                    <button type="submit">Asignar</button>
+                </form>
+
+                @if (v.Paciente is not null)
+                {
+                    <form method="post" action="/visores/@v.Id/quitar">
+                        <AntiforgeryToken />
+                        <button class="claro" type="submit">Quitar paciente</button>
+                    </form>
+                }
+            }
+            else
+            {
+                <p class="ayuda">Vinculando… espere unos segundos y recargue la página.</p>
+            }
+        </article>
+    }
+
+    <details class="bloque avanzado" open="@(Error is "codigo" or "nombre" or "solicitud" or "duplicado" or "confirmar")">
+        <summary>Opciones avanzadas</summary>
+
+        <h2>Vincular gafas nuevas</h2>
+        <p class="ayuda">En las gafas, pulse <strong>Vincular visor</strong> y escriba aquí el código que aparece.</p>
+        <form method="post" action="/visores/aprobar">
+            <AntiforgeryToken />
+            <label>Código de las gafas
+                <input name="codigo" placeholder="K7QM-4XPA" autocapitalize="characters" autocomplete="off" required />
+            </label>
+            <label>Nombre
+                <input name="nombre" placeholder="Gafas 1" maxlength="40" required />
+            </label>
+            <button type="submit">Vincular</button>
+        </form>
+
+        @if (lista.Count > 0)
+        {
+            <h2>Dar de baja unas gafas</h2>
+            <p class="ayuda">Solo si se perdieron, se restablecieron o ya no se usarán. Dejarán de enviar datos hasta volver a vincularlas. Las sesiones guardadas no se borran.</p>
+            <form method="post" action="/visores/revocar">
+                <AntiforgeryToken />
+                <select name="visor" required>
+                    <option value="" disabled selected>Elegir gafas</option>
+                    @foreach (var v in lista)
+                    {
+                        <option value="@v.Id">@v.Nombre</option>
+                    }
+                </select>
+                <label class="casilla">
+                    <input type="checkbox" name="confirmar" value="si" required />
+                    Confirmo la baja
+                </label>
+                <button class="rojo" type="submit">Dar de baja</button>
+            </form>
+        }
+    </details>
+</section>
+
+@code {
+    [SupplyParameterFromQuery] private string? Ok { get; set; }
+    [SupplyParameterFromQuery] private string? Error { get; set; }
+    private List<VisorFila> lista = [];
+    private List<string> pacientes = [];
+
+    private static readonly Dictionary<string, string> Mensajes = new()
+    {
+        ["aprobado"] = "Gafas aprobadas. Se vincularán en unos segundos.",
+        ["asignado"] = "Listo. Las gafas mostrarán al paciente en unos segundos.",
+        ["quitado"] = "Paciente quitado.",
+        ["revocado"] = "Gafas dadas de baja.",
+    };
+
+    private static readonly Dictionary<string, string> Errores = new()
+    {
+        ["codigo"] = "El código no es válido. Escríbalo como aparece en las gafas.",
+        ["nombre"] = "Nombre no válido: hasta 40 letras, números, espacios, punto o guion.",
+        ["solicitud"] = "Ese código no está vigente. Pulse otra vez Vincular visor en las gafas.",
+        ["duplicado"] = "Ya existen unas gafas con ese nombre.",
+        ["paciente"] = "Elija un paciente.",
+        ["asignar"] = "No se pudo asignar. Recargue la página e intente de nuevo.",
+        ["confirmar"] = "Marque la casilla para confirmar la baja.",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        lista = await Repo.ListarAsync();
+        pacientes = await Repo.CodigosPacientesAsync();
+    }
+}
