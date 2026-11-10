@@ -1,26 +1,29 @@
 @page "/entrar"
 @attribute [AllowAnonymous]
 @inject Terapeutas Repo
+@inject Auditoria Log
 @inject NavigationManager Nav
 
 <PageTitle>Entrar</PageTitle>
 
-<section class="tarjeta">
+<section class="tarjeta acceso">
     <h1>Portal del terapeuta</h1>
     <form method="post" @formname="entrar" @onsubmit="EntrarAsync">
         <AntiforgeryToken />
-        <label>Usuario
-            <input name="Datos.Usuario" value="@Datos!.Usuario" autocomplete="username" autocapitalize="none" required />
-        </label>
-        <label>Contraseña
-            <input name="Datos.Clave" type="password" autocomplete="current-password" required />
-        </label>
+        <input name="Datos.Usuario" value="@Datos!.Usuario" placeholder="Usuario" aria-label="Usuario"
+               autocomplete="username" autocapitalize="none" required />
+        <div class="clave">
+            <input name="Datos.Clave" type="password" placeholder="Contraseña" aria-label="Contraseña"
+                   autocomplete="current-password" required />
+            <OjoClave />
+        </div>
         @if (error is not null)
         {
             <p class="error">@error</p>
         }
-        <button type="submit">Entrar</button>
+        <button type="submit">Iniciar sesión</button>
     </form>
+    <a class="olvido" href="/recuperar">¿Olvidó su contraseña?</a>
 </section>
 
 @code {
@@ -48,7 +51,11 @@
         else
         {
             correcta = Contrasenas.Verificar(t.Hash, Datos.Clave) != PasswordVerificationResult.Failed;
-            if (!correcta) await Repo.FalloAsync(t.Id);
+            if (!correcta)
+            {
+                await Repo.FalloAsync(t.Id);
+                await Log.RegistrarAsync(t.Usuario, "entrar_fallido");
+            }
         }
 
         if (!correcta || t is null)
@@ -58,6 +65,7 @@
         }
 
         await Repo.AccesoAsync(t.Id);
+        await Log.RegistrarAsync(t.Usuario, "entrar");
         await Sesion.EntrarAsync(Http, t);
         Nav.NavigateTo(t.DebeCambiar ? "/cambiar-clave" : "/");
     }

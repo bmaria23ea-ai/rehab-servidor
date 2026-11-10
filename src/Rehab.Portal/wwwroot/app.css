@@ -60,6 +60,17 @@ h2 { font-size: 1.05rem; margin: 1.2rem 0 .3rem; }
 .barra-fila { display: grid; grid-template-columns: 3.5rem 1fr 4.5rem; align-items: center; gap: .5rem; font-size: .9rem; }
 .barra-fila span:last-child { text-align: right; }
 progress { width: 100%; height: .9rem; accent-color: var(--azul); }
+.acceso form > input, .acceso .clave { margin-bottom: .8rem; }
+.acceso input { padding: .85rem; border-radius: 10px; }
+.acceso button[type=submit] { border-radius: 999px; font-weight: 600; margin-top: .3rem; }
+.olvido { display: block; text-align: center; margin-top: 1.2rem; color: var(--texto); text-decoration: none; }
+.clave { display: block; position: relative; margin-top: .3rem; }
+.clave input { margin-top: 0; padding-right: 3rem; }
+.clave input::-ms-reveal { display: none; }
+.ojo { position: absolute; top: 0; right: 0; width: 3rem; height: 100%; padding: 0; background: none; color: #55606b;
+       display: flex; align-items: center; justify-content: center; }
+.ojo .tachado { display: none; }
+.ojo[aria-pressed="true"] .tachado { display: inline; }
 @media (max-width: 640px) {
   .barra .marca { display: none; }
   .enlaces { gap: .9rem; font-size: .95rem; }

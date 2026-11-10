@@ -1,22 +1,32 @@
 @page "/cambiar-clave"
 @inject Terapeutas Repo
+@inject Auditoria Log
 @inject NavigationManager Nav
 
 <PageTitle>Cambiar contraseña</PageTitle>
 
 <section class="tarjeta">
     <h1>Cambiar contraseña</h1>
-    <p class="ayuda">Al menos @Contrasenas.Minimo caracteres. Puede ser una frase, por ejemplo <em>caminata de la tarde</em>. No caduca.</p>
+    <p class="ayuda">Al menos @Contrasenas.Minimo caracteres. Puede ser una frase de tres o cuatro palabras que solo usted relacione. No caduca.</p>
     <form method="post" @formname="cambiar" @onsubmit="CambiarAsync">
         <AntiforgeryToken />
         <label>Contraseña actual
-            <input name="Datos.Actual" type="password" autocomplete="current-password" required />
+            <span class="clave">
+                <input name="Datos.Actual" type="password" autocomplete="current-password" required />
+                <OjoClave />
+            </span>
         </label>
         <label>Nueva contraseña
-            <input name="Datos.Nueva" type="password" autocomplete="new-password" maxlength="@Contrasenas.Maximo" required />
+            <span class="clave">
+                <input name="Datos.Nueva" type="password" autocomplete="new-password" maxlength="@Contrasenas.Maximo" required />
+                <OjoClave />
+            </span>
         </label>
         <label>Repita la nueva
-            <input name="Datos.Repetir" type="password" autocomplete="new-password" maxlength="@Contrasenas.Maximo" required />
+            <span class="clave">
+                <input name="Datos.Repetir" type="password" autocomplete="new-password" maxlength="@Contrasenas.Maximo" required />
+                <OjoClave />
+            </span>
         </label>
         @if (error is not null)
         {
@@ -57,6 +67,7 @@
         if (error is not null) return;
 
         string sello = await Repo.CambiarClaveAsync(t.Id, Datos.Nueva);
+        await Log.RegistrarAsync(t.Usuario, "cambiar_clave");
         await Sesion.EntrarAsync(Http, t, sello, temporal: false);
         Nav.NavigateTo("/");
     }

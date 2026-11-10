@@ -1,5 +1,6 @@
 @page "/pacientes"
 @inject Pacientes Repo
+@inject Auditoria Log
 @inject NavigationManager Nav
 
 <PageTitle>Pacientes</PageTitle>
@@ -69,6 +70,7 @@
 </section>
 
 @code {
+    [CascadingParameter] private HttpContext Http { get; set; } = default!;
     [SupplyParameterFromForm] private Formulario? Datos { get; set; }
     [SupplyParameterFromQuery] private string? Nuevo { get; set; }
     [SupplyParameterFromQuery] private string? Eliminado { get; set; }
@@ -93,6 +95,9 @@
     {
         error = await Repo.RegistrarAsync(Datos!.Codigo, Datos.Prueba, Datos.Fecha, Datos.Version);
         if (error is null)
+        {
+            await Log.RegistrarAsync(Http.User, "registrar_paciente", Datos.Codigo.Trim().ToUpperInvariant());
             Nav.NavigateTo($"/pacientes?nuevo={Uri.EscapeDataString(Datos.Codigo.Trim().ToUpperInvariant())}");
+        }
     }
 }

@@ -1,0 +1,42 @@
+@page "/actividad"
+@inject Auditoria Repo
+
+<PageTitle>Actividad</PageTitle>
+
+<section class="panel">
+    <h1>Actividad del portal</h1>
+    <p class="ayuda">Últimas @Maximo acciones. Este registro no se puede modificar ni borrar.</p>
+
+    @if (lista.Count == 0)
+    {
+        <p>Todavía no hay actividad.</p>
+    }
+    else
+    {
+        <div class="tabla">
+            <table>
+                <thead>
+                    <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in lista)
+                    {
+                        <tr>
+                            <td>@Hora.FechaHora(a.Fecha)</td>
+                            <td>@a.Terapeuta</td>
+                            <td>@Auditoria.Texto(a.Accion)</td>
+                            <td>@(a.Objeto ?? "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private const int Maximo = 200;
+    private List<AuditoriaFila> lista = [];
+
+    protected override async Task OnInitializedAsync() => lista = await Repo.ListarAsync(Maximo);
+}

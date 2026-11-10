@@ -18,7 +18,7 @@ public static class Contrasenas
         "1234567890", "0123456789", "12345678910", "1111111111", "0000000000", "abcdefghij",
         "qwertyuiop", "password123", "contraseña", "contrasena", "contraseña1", "contrasena1",
         "contraseña123", "contrasena123", "administrador", "terapeuta123", "rehabilitacion",
-        "rehabilitación", "fisioterapia", "ecuador2026", "ambato2026", "bienvenido1",
+        "rehabilitación", "fisioterapia", "ecuador2026", "ambato2026", "bienvenido1", "caminata de la tarde",
     };
 
     public static string Temporal() =>
