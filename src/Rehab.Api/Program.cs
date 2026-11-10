@@ -88,7 +88,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
-app.MapEnrolamiento();
+app.MapVinculacion();
 app.MapToken();
 app.MapAsignacion();
 app.MapSesiones();

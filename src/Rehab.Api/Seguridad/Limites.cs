@@ -7,6 +7,7 @@ namespace Rehab.Api.Seguridad;
 public static class Limites
 {
     public const string Enrolamiento = "enrolamiento";
+    public const string Consulta = "consulta";
     public const string Token = "token";
     public const string Sesiones = "sesiones";
 
@@ -15,12 +16,22 @@ public static class Limites
         {
             o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            // Enrolamiento: 5 intentos por minuto por IP (frena la adivinación de códigos)
+            // Solicitud de vinculación: 5 por minuto por IP
             o.AddPolicy(Enrolamiento, ctx => RateLimitPartition.GetFixedWindowLimiter(
                 ctx.Connection.RemoteIpAddress?.ToString() ?? "desconocida",
                 _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
+
+            // Consulta de vinculación: las gafas preguntan cada 5 s mientras esperan la aprobación
+            o.AddPolicy(Consulta, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "desconocida",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 30,
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0,
                 }));

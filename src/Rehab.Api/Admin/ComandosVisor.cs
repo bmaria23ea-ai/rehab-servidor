@@ -1,6 +1,6 @@
 // Comandos de administración de visores. Solo se ejecutan desde la terminal del servidor:
-//   docker compose exec api dotnet Rehab.Api.dll visor-nuevo "Quest 3 - 01"
-// El código de enrolamiento se muestra solo en esa terminal; nunca se escribe en los registros.
+//   docker compose exec api dotnet Rehab.Api.dll visor-aprobar K7QM-4XPA "Quest 3 - 01"
+// El código lo muestran las gafas al pulsar "Vincular visor"; aprobarlo crea el visor.
 using System.Text.RegularExpressions;
 using MySqlConnector;
 using Rehab.Api.Seguridad;
@@ -9,8 +9,6 @@ namespace Rehab.Api.Admin;
 
 public static partial class ComandosVisor
 {
-    private const int MinutosVigencia = 10;
-
     [GeneratedRegex(@"^[\p{L}\p{N} ._-]{1,40}$")]
     private static partial Regex NombreValido();
 
@@ -23,8 +21,7 @@ public static partial class ComandosVisor
         {
             return args[0] switch
             {
-                "visor-nuevo" when args.Length == 2 => await NuevoAsync(ds, args[1]),
-                "visor-codigo" when tieneId => await NuevoCodigoAsync(ds, id),
+                "visor-aprobar" when args.Length == 3 => await AprobarAsync(ds, args[1], args[2]),
                 "visor-revocar" when tieneId => await RevocarAsync(ds, id),
                 "visor-lista" when args.Length == 1 => await ListaAsync(ds),
                 _ => Ayuda(),
@@ -42,9 +39,16 @@ public static partial class ComandosVisor
         }
     }
 
-    // Registra un visor (estado "pendiente") y genera su código de enrolamiento
-    private static async Task<int> NuevoAsync(MySqlDataSource ds, string nombre)
+    // Aprueba la solicitud que muestran las gafas: crea el visor (pendiente) y lo une a la solicitud.
+    // Las gafas lo detectan en su siguiente consulta, reciben su secreto y el visor pasa a "activo".
+    private static async Task<int> AprobarAsync(MySqlDataSource ds, string codigoTexto, string nombre)
     {
+        string? codigo = CodigosEnrolamiento.Normalizar(codigoTexto);
+        if (codigo is null)
+        {
+            Console.Error.WriteLine("Código no válido. Escríbalo como aparece en las gafas, por ejemplo K7QM-4XPA.");
+            return 1;
+        }
         nombre = nombre.Trim();
         if (!NombreValido().IsMatch(nombre))
         {
@@ -55,45 +59,34 @@ public static partial class ComandosVisor
         await using var cn = await ds.OpenConnectionAsync();
         await using var tx = await cn.BeginTransactionAsync();
 
-        await using var cmd = new MySqlCommand("INSERT INTO visores (nombre) VALUES (@nombre)", cn, tx);
-        cmd.Parameters.AddWithValue("@nombre", nombre);
-        await cmd.ExecuteNonQueryAsync();
-        var id = (ushort)cmd.LastInsertedId;
-
-        string codigo = await CrearCodigoAsync(cn, tx, id);
-        await tx.CommitAsync();
-
-        Console.WriteLine($"Visor creado: #{id} \"{nombre}\"");
-        MostrarCodigo(codigo);
-        return 0;
-    }
-
-    // Genera un código nuevo para un visor pendiente (por ejemplo, si el anterior venció)
-    private static async Task<int> NuevoCodigoAsync(MySqlDataSource ds, ushort id)
-    {
-        await using var cn = await ds.OpenConnectionAsync();
-        await using var tx = await cn.BeginTransactionAsync();
-
-        await using var cmd = new MySqlCommand("SELECT estado FROM visores WHERE id = @id FOR UPDATE", cn, tx);
-        cmd.Parameters.AddWithValue("@id", id);
-        var estado = await cmd.ExecuteScalarAsync() as string;
-
-        if (estado is null) { Console.Error.WriteLine($"No existe el visor #{id}."); return 1; }
-        if (estado != "pendiente")
+        await using var buscar = new MySqlCommand(
+            "SELECT id FROM solicitudes_vinculacion " +
+            "WHERE codigo_hash = @hash AND visor_id IS NULL AND expira_utc > UTC_TIMESTAMP(3) FOR UPDATE", cn, tx);
+        buscar.Parameters.AddWithValue("@hash", CodigosEnrolamiento.Hash(codigo));
+        object? solicitud = await buscar.ExecuteScalarAsync();
+        if (solicitud is null)
         {
-            Console.Error.WriteLine($"El visor #{id} está \"{estado}\". Solo se generan códigos para visores pendientes.");
+            Console.Error.WriteLine("No hay ninguna solicitud vigente con ese código. Pulse de nuevo \"Vincular visor\" en las gafas.");
             return 1;
         }
 
-        string codigo = await CrearCodigoAsync(cn, tx, id);
-        await tx.CommitAsync();
+        await using var crear = new MySqlCommand("INSERT INTO visores (nombre) VALUES (@nombre)", cn, tx);
+        crear.Parameters.AddWithValue("@nombre", nombre);
+        await crear.ExecuteNonQueryAsync();
+        var id = (ushort)crear.LastInsertedId;
 
-        Console.WriteLine($"Nuevo código para el visor #{id}");
-        MostrarCodigo(codigo);
+        await using var unir = new MySqlCommand(
+            "UPDATE solicitudes_vinculacion SET visor_id = @visor WHERE id = @id", cn, tx);
+        unir.Parameters.AddWithValue("@visor", id);
+        unir.Parameters.AddWithValue("@id", solicitud);
+        await unir.ExecuteNonQueryAsync();
+
+        await tx.CommitAsync();
+        Console.WriteLine($"Visor #{id} \"{nombre}\" aprobado. Las gafas se vincularán en unos segundos.");
         return 0;
     }
 
-    // Revoca un visor: borra su secreto y sus códigos sin usar. Queda bloqueado de inmediato.
+    // Revoca un visor: borra su secreto y su solicitud pendiente. Queda bloqueado de inmediato.
     private static async Task<int> RevocarAsync(MySqlDataSource ds, ushort id)
     {
         await using var cn = await ds.OpenConnectionAsync();
@@ -108,7 +101,7 @@ public static partial class ComandosVisor
         if (filas == 0) { Console.Error.WriteLine($"El visor #{id} no existe o ya estaba revocado."); return 1; }
 
         await using var borrar = new MySqlCommand(
-            "DELETE FROM codigos_enrolamiento WHERE visor_id = @id AND usado_utc IS NULL", cn, tx);
+            "DELETE FROM solicitudes_vinculacion WHERE visor_id = @id", cn, tx);
         borrar.Parameters.AddWithValue("@id", id);
         await borrar.ExecuteNonQueryAsync();
 
@@ -135,40 +128,13 @@ public static partial class ComandosVisor
         return 0;
     }
 
-    // Borra los códigos anteriores sin usar del visor y guarda uno nuevo (solo su hash)
-    private static async Task<string> CrearCodigoAsync(MySqlConnection cn, MySqlTransaction tx, ushort visorId)
-    {
-        await using (var borrar = new MySqlCommand(
-            "DELETE FROM codigos_enrolamiento WHERE visor_id = @id AND usado_utc IS NULL", cn, tx))
-        {
-            borrar.Parameters.AddWithValue("@id", visorId);
-            await borrar.ExecuteNonQueryAsync();
-        }
-
-        string codigo = CodigosEnrolamiento.Nuevo();
-        await using var cmd = new MySqlCommand(
-            "INSERT INTO codigos_enrolamiento (visor_id, codigo_hash, expira_utc) " +
-            $"VALUES (@id, @hash, UTC_TIMESTAMP(3) + INTERVAL {MinutosVigencia} MINUTE)", cn, tx);
-        cmd.Parameters.AddWithValue("@id", visorId);
-        cmd.Parameters.AddWithValue("@hash", CodigosEnrolamiento.Hash(codigo));
-        await cmd.ExecuteNonQueryAsync();
-        return codigo;
-    }
-
-    private static void MostrarCodigo(string codigo)
-    {
-        Console.WriteLine($"Código de enrolamiento: {CodigosEnrolamiento.Formatear(codigo)}");
-        Console.WriteLine($"Vence en {MinutosVigencia} minutos y sirve una sola vez. No lo guardes ni lo compartas por chat.");
-    }
-
     private static int Ayuda()
     {
         Console.Error.WriteLine("""
             Comandos:
-              visor-nuevo "<nombre>"   Registra un visor y muestra su código de enrolamiento
-              visor-codigo <id>        Genera un código nuevo para un visor pendiente
-              visor-revocar <id>       Revoca un visor (queda bloqueado de inmediato)
-              visor-lista              Muestra los visores y su estado
+              visor-aprobar <código> "<nombre>"   Vincula las gafas que muestran ese código
+              visor-revocar <id>                  Revoca un visor (queda bloqueado de inmediato)
+              visor-lista                         Muestra los visores y su estado
             """);
         return 2;
     }

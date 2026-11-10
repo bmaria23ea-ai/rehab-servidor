@@ -1,4 +1,4 @@
-// Códigos de enrolamiento de visores: 8 caracteres Crockford Base32 (40 bits),
+// Códigos de vinculación de visores (los muestran las gafas): 8 caracteres Crockford Base32 (40 bits),
 // sin letras que se confunden (I, L, O, U). En la base solo se guarda su hash.
 using System.Security.Cryptography;
 using System.Text;
