@@ -1,0 +1,19 @@
+# Ajustes para el servidor de Azure (ARM64, 1 GiB). Se aplica sobre compose.yaml:
+#   docker compose -f compose.yaml -f compose.azure.yaml up -d --no-build
+services:
+  db:
+    mem_limit: 384m
+    volumes:
+      - ./db/conf/memoria.cnf:/etc/mysql/conf.d/memoria.cnf:ro
+
+  api:
+    image: rehab-api:arm64
+    pull_policy: never
+    environment:
+      DOTNET_gcServer: "0"   # GC de estación de trabajo: menos memoria
+
+  portal:
+    image: rehab-portal:arm64
+    pull_policy: never
+    environment:
+      DOTNET_gcServer: "0"
