@@ -13,7 +13,7 @@
     }
     else
     {
-        <div class="tabla">
+        <div class="tabla registro">
             <table>
                 <thead>
                     <tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Sobre</th></tr>
@@ -25,7 +25,7 @@
                             <td>@Hora.FechaHora(a.Fecha)</td>
                             <td>@a.Terapeuta</td>
                             <td>@Auditoria.Texto(a.Accion)</td>
-                            <td>@(a.Objeto ?? "-")</td>
+                            <td class="@(a.Objeto is null ? "vacio" : null)">@(a.Objeto ?? "-")</td>
                         </tr>
                     }
                 </tbody>

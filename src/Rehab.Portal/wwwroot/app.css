@@ -135,6 +135,19 @@ th, td { text-align: left; padding: .65rem .8rem; border-bottom: 1px solid var(-
 th { color: var(--suave); font-weight: 600; background: #F6F8FA; }
 tr:last-child td { border-bottom: 0; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Actividad en celular: una tarjeta por registro */
+@media (max-width: 699px) {
+  .registro thead { display: none; }
+  .registro table, .registro tbody { display: block; }
+  .registro tr { display: grid; grid-template-columns: auto 1fr; column-gap: .35rem; padding: .7rem .9rem; border-bottom: 1px solid var(--linea); }
+  .registro tr:last-child { border-bottom: 0; }
+  .registro td { padding: 0; border: 0; white-space: normal; min-width: 0; }
+  .registro td:nth-child(-n+2) { font-size: .8rem; color: var(--suave); }
+  .registro td:nth-child(2)::before { content: "· "; }
+  .registro td:nth-child(3) { grid-column: 1 / -1; font-weight: 600; margin-top: .2rem; }
+  .registro td:nth-child(4) { grid-column: 1 / -1; color: var(--texto-2); overflow-wrap: anywhere; }
+  .registro td.vacio { display: none; }
+}
 
 /* Pestañas */
 .pestanas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; background: #E6EAEF; border-radius: 10px; padding: 4px; margin: 1rem 0; }
