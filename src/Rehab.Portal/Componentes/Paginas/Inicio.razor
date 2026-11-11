@@ -1,17 +1,104 @@
 @page "/"
+@inject Sesiones Repo
+@inject Visores VisoresRepo
 
 <PageTitle>Inicio</PageTitle>
 
-<section class="panel">
-    <h1>Hola, @Http.User.Identity?.Name</h1>
-    <nav class="menu">
-        <a href="/sesiones">Sesiones</a>
-        <a href="/visores">Gafas</a>
-        <a href="/pacientes">Pacientes</a>
-    </nav>
-    <p><a href="/cambiar-clave">Cambiar contraseña</a> · <a href="/actividad">Actividad del portal</a></p>
-</section>
+<div class="encabezado">
+    <div>
+        <span class="subtitulo">@Hora.HoyLargo()</span>
+        <h1>Para revisar hoy</h1>
+    </div>
+</div>
+
+@if (Ok == "asignada") { <p class="exito">Sesión asignada.</p> }
+@if (Error == "asignar") { <p class="error">No se pudo asignar. Elija un paciente.</p> }
+
+<div class="contadores">
+    <div><strong>@resumen.Sesiones</strong><span>Sesiones hoy</span></div>
+    <div><strong class="@(resumen.Interrumpidas > 0 ? "aviso" : "")">@resumen.Interrumpidas</strong><span>Interrumpidas</span></div>
+    <div><strong>@resumen.SinPaciente</strong><span>Sin paciente</span></div>
+</div>
+
+<div class="dos-columnas">
+    <section>
+        <h2>Requieren atención</h2>
+        @if (pendientes.Count == 0)
+        {
+            <p class="ayuda">Nada pendiente.</p>
+        }
+        @foreach (var s in pendientes)
+        {
+            <article class="ficha">
+                <header>
+                    <strong>@(s.Paciente ?? "Sesión sin paciente")</strong>
+                    <span class="ayuda">@Hora.Cercana(s.Inicio)</span>
+                </header>
+                @if (!s.Completa)
+                {
+                    <p><span class="estado pendiente">Interrumpida · @Textos.Motivo(s.Motivo)</span></p>
+                }
+                <p class="ayuda">@Textos.Ejercicio(s.Ejercicio) · @Textos.Num(s.DistanciaM, "0.##") m · @Textos.Minutos(s.DuracionS) · @s.Visor · Sesión @s.Codigo</p>
+                @if (s.Paciente is null)
+                {
+                    <form method="post" action="/sesiones/@s.Id/asignar" class="fila">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="volver" value="inicio" />
+                        <select name="paciente" aria-label="Paciente" required>
+                            <option value="" disabled selected>Elegir paciente</option>
+                            @foreach (var c in pacientes)
+                            {
+                                <option value="@c">@c</option>
+                            }
+                        </select>
+                        <button type="submit">Asignar</button>
+                    </form>
+                }
+                <a class="volver" href="/sesiones/@s.Id">Ver sesión ›</a>
+            </article>
+        }
+    </section>
+
+    <section>
+        <div class="encabezado">
+            <h2>Últimas sesiones</h2>
+            <a class="volver" href="/sesiones">Ver todas</a>
+        </div>
+        @if (recientes.Count == 0)
+        {
+            <p class="ayuda">Todavía no hay sesiones.</p>
+        }
+        else
+        {
+            <div class="lista">
+                @foreach (var s in recientes)
+                {
+                    <a class="sesion" href="/sesiones/@s.Id">
+                        <span>
+                            <strong>@(s.Paciente ?? "Sin paciente") · @Textos.Ejercicio(s.Ejercicio)</strong>
+                            <small>@Hora.Cercana(s.Inicio) · @Textos.Num(s.DistanciaM, "0.##") m · @Textos.Minutos(s.DuracionS)</small>
+                        </span>
+                        <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+</div>
 
 @code {
-    [CascadingParameter] private HttpContext Http { get; set; } = default!;
+    [SupplyParameterFromQuery] private string? Ok { get; set; }
+    [SupplyParameterFromQuery] private string? Error { get; set; }
+    private ResumenHoy resumen = new(0, 0, 0);
+    private List<SesionFila> pendientes = [];
+    private List<SesionFila> recientes = [];
+    private List<string> pacientes = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        resumen = await Repo.ResumenHoyAsync();
+        pendientes = await Repo.PendientesAsync();
+        recientes = await Repo.RecientesAsync(6);
+        if (pendientes.Any(s => s.Paciente is null)) pacientes = await VisoresRepo.CodigosPacientesAsync();
+    }
 }

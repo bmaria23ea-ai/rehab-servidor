@@ -1,109 +1,110 @@
 @page "/visores"
 @inject Visores Repo
 
-<PageTitle>Gafas</PageTitle>
+<PageTitle>Visores</PageTitle>
 
-<section class="panel">
-    <h1>Gafas</h1>
-    <p class="ayuda">Elija el paciente antes de colocarle las gafas.</p>
+<div class="encabezado">
+    <div>
+        <h1>Visores</h1>
+        <span class="subtitulo">Asigne el paciente antes de colocarle el visor.</span>
+    </div>
+</div>
 
-    @if (Ok is not null && Mensajes.TryGetValue(Ok, out var ok))
-    {
-        <p class="exito">@ok</p>
-    }
-    @if (Error is not null && Errores.TryGetValue(Error, out var error))
-    {
-        <p class="error">@error</p>
-    }
+@if (Ok is not null && Mensajes.TryGetValue(Ok, out var ok))
+{
+    <p class="exito">@ok</p>
+}
+@if (Error is not null && Errores.TryGetValue(Error, out var error))
+{
+    <p class="error">@error</p>
+}
 
-    @if (lista.Count == 0)
-    {
-        <p>No hay gafas vinculadas. Use <em>Opciones avanzadas</em> más abajo.</p>
-    }
+<details class="bloque" open="@(Error is "codigo" or "nombre" or "solicitud" or "duplicado")">
+    <summary>+ Vincular visor</summary>
+    <p class="ayuda">En el visor pulse <strong>Vincular</strong> y escriba aquí el código que aparece. El nombre lo elige usted, por ejemplo el número de la etiqueta del visor.</p>
+    <form method="post" action="/visores/aprobar">
+        <AntiforgeryToken />
+        <label>Código del visor
+            <input name="codigo" autocapitalize="characters" autocomplete="off" required />
+        </label>
+        <label>Nombre
+            <input name="nombre" maxlength="40" autocomplete="off" required />
+        </label>
+        <button type="submit">Vincular</button>
+    </form>
+</details>
 
-    @foreach (var v in lista)
-    {
-        <article class="ficha">
-            <header><strong>@v.Nombre</strong></header>
+@if (lista.Count == 0)
+{
+    <p class="ayuda">No hay visores vinculados.</p>
+}
 
-            @if (v.Estado == "activo")
+@foreach (var v in lista)
+{
+    <article class="ficha">
+        <header>
+            <strong>@v.Nombre</strong>
+            @if (v.Estado != "activo")
             {
-                <p>
-                    @if (v.Paciente is not null)
-                    {
-                        <span>Paciente: <strong>@v.Paciente</strong></span>
-                    }
-                    else
-                    {
-                        <span class="ayuda">Sin paciente</span>
-                    }
-                </p>
-
-                <form method="post" action="/visores/@v.Id/asignar" class="fila">
-                    <AntiforgeryToken />
-                    <select name="paciente" required>
-                        <option value="" disabled selected="@(v.Paciente is null)">Elegir paciente</option>
-                        @foreach (var c in pacientes)
-                        {
-                            <option value="@c" selected="@(c == v.Paciente)">@c</option>
-                        }
-                    </select>
-                    <button type="submit">Asignar</button>
-                </form>
-
-                @if (v.Paciente is not null)
-                {
-                    <form method="post" action="/visores/@v.Id/quitar">
-                        <AntiforgeryToken />
-                        <button class="claro" type="submit">Quitar paciente</button>
-                    </form>
-                }
+                <span class="estado pendiente">Vinculando…</span>
+            }
+            else if (v.Paciente is not null)
+            {
+                <span class="estado neutro">En uso</span>
             }
             else
             {
-                <p class="ayuda">Vinculando… espere unos segundos y recargue la página.</p>
+                <span class="estado activo">Disponible</span>
             }
-        </article>
-    }
+        </header>
 
-    <details class="bloque avanzado" open="@(Error is "codigo" or "nombre" or "solicitud" or "duplicado" or "confirmar")">
-        <summary>Opciones avanzadas</summary>
-
-        <h2>Vincular gafas nuevas</h2>
-        <p class="ayuda">En las gafas, pulse <strong>Vincular visor</strong> y escriba aquí el código que aparece.</p>
-        <form method="post" action="/visores/aprobar">
-            <AntiforgeryToken />
-            <label>Código de las gafas
-                <input name="codigo" placeholder="K7QM-4XPA" autocapitalize="characters" autocomplete="off" required />
-            </label>
-            <label>Nombre
-                <input name="nombre" placeholder="Gafas 1" maxlength="40" required />
-            </label>
-            <button type="submit">Vincular</button>
-        </form>
-
-        @if (lista.Count > 0)
+        @if (v.Estado == "activo")
         {
-            <h2>Dar de baja unas gafas</h2>
-            <p class="ayuda">Solo si se perdieron, se restablecieron o ya no se usarán. Dejarán de enviar datos hasta volver a vincularlas. Las sesiones guardadas no se borran.</p>
-            <form method="post" action="/visores/revocar">
+            if (v.Paciente is not null)
+            {
+                <p>Paciente asignado: <strong>@v.Paciente</strong> <span class="ayuda">hasta las @(v.Expira is { } e ? Hora.SoloHora(e) : "-")</span></p>
+            }
+
+            <form method="post" action="/visores/@v.Id/asignar" class="fila">
                 <AntiforgeryToken />
-                <select name="visor" required>
-                    <option value="" disabled selected>Elegir gafas</option>
-                    @foreach (var v in lista)
+                <select name="paciente" aria-label="Paciente" required>
+                    <option value="" disabled selected="@(v.Paciente is null)">Elegir paciente</option>
+                    @foreach (var c in pacientes)
                     {
-                        <option value="@v.Id">@v.Nombre</option>
+                        <option value="@c" selected="@(c == v.Paciente)">@c</option>
                     }
                 </select>
+                <button type="submit">@(v.Paciente is null ? "Asignar" : "Cambiar")</button>
+            </form>
+
+            @if (v.Paciente is not null)
+            {
+                <form method="post" action="/visores/@v.Id/quitar">
+                    <AntiforgeryToken />
+                    <button class="claro" type="submit">Liberar visor</button>
+                </form>
+            }
+        }
+        else
+        {
+            <p class="ayuda">Espere unos segundos y recargue la página.</p>
+        }
+
+        <details class="avanzado">
+            <summary class="peligro">Desvincular visor</summary>
+            <p class="ayuda">Solo si se perdió, se restableció o ya no se usará. Dejará de enviar sesiones hasta volver a vincularlo. Las sesiones guardadas no se borran.</p>
+            <form method="post" action="/visores/revocar">
+                <AntiforgeryToken />
+                <input type="hidden" name="visor" value="@v.Id" />
                 <label class="casilla">
                     <input type="checkbox" name="confirmar" value="si" required />
-                    Confirmo la baja
+                    Confirmo desvincular @v.Nombre
                 </label>
-                <button class="rojo" type="submit">Dar de baja</button>
+                <button class="rojo" type="submit">Desvincular</button>
             </form>
-        }
-    </details>
-</section>
+        </details>
+    </article>
+}
 
 @code {
     [SupplyParameterFromQuery] private string? Ok { get; set; }
@@ -113,21 +114,21 @@
 
     private static readonly Dictionary<string, string> Mensajes = new()
     {
-        ["aprobado"] = "Gafas aprobadas. Se vincularán en unos segundos.",
-        ["asignado"] = "Listo. Las gafas mostrarán al paciente en unos segundos.",
-        ["quitado"] = "Paciente quitado.",
-        ["revocado"] = "Gafas dadas de baja.",
+        ["aprobado"] = "Visor aprobado. Se vinculará en unos segundos.",
+        ["asignado"] = "Listo. El visor mostrará al paciente en unos segundos.",
+        ["quitado"] = "Visor liberado.",
+        ["revocado"] = "Visor desvinculado.",
     };
 
     private static readonly Dictionary<string, string> Errores = new()
     {
-        ["codigo"] = "El código no es válido. Escríbalo como aparece en las gafas.",
+        ["codigo"] = "El código no es válido. Escríbalo como aparece en el visor.",
         ["nombre"] = "Nombre no válido: hasta 40 letras, números, espacios, punto o guion.",
-        ["solicitud"] = "Ese código no está vigente. Pulse otra vez Vincular visor en las gafas.",
-        ["duplicado"] = "Ya existen unas gafas con ese nombre.",
+        ["solicitud"] = "Ese código no está vigente. Pulse otra vez Vincular en el visor.",
+        ["duplicado"] = "Ya existe un visor con ese nombre.",
         ["paciente"] = "Elija un paciente.",
         ["asignar"] = "No se pudo asignar. Recargue la página e intente de nuevo.",
-        ["confirmar"] = "Marque la casilla para confirmar la baja.",
+        ["confirmar"] = "Marque la casilla para confirmar.",
     };
 
     protected override async Task OnInitializedAsync()

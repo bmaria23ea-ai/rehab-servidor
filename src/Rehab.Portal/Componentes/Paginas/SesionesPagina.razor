@@ -1,42 +1,44 @@
 @page "/sesiones"
 @inject Sesiones Repo
-@inject Visores Gafas
+@inject Visores VisoresRepo
 
 <PageTitle>Sesiones</PageTitle>
 
-<section class="panel">
+<div class="encabezado">
     <h1>Sesiones</h1>
+</div>
 
-    <form method="get" class="fila">
-        <select name="paciente">
-            <option value="" selected="@(string.IsNullOrEmpty(Paciente))">Todos los pacientes</option>
-            <option value="@Sesiones.SinPaciente" selected="@(Paciente == Sesiones.SinPaciente)">Sin paciente</option>
-            @foreach (var c in pacientes)
-            {
-                <option value="@c" selected="@(c == Paciente)">@c</option>
-            }
-        </select>
-        <button type="submit">Ver</button>
-    </form>
+<form method="get" class="fila">
+    <select name="paciente" aria-label="Paciente">
+        <option value="" selected="@(string.IsNullOrEmpty(Paciente))">Todos los pacientes</option>
+        <option value="@Sesiones.SinPaciente" selected="@(Paciente == Sesiones.SinPaciente)">Sin paciente</option>
+        @foreach (var c in pacientes)
+        {
+            <option value="@c" selected="@(c == Paciente)">@c</option>
+        }
+    </select>
+    <button type="submit">Ver</button>
+</form>
 
-    @if (lista.Count == 0)
-    {
-        <p>No hay sesiones.</p>
-    }
-
-    @foreach (var s in lista)
-    {
-        <a class="sesion" href="/sesiones/@s.Id">
-            <span class="cabeza">
-                <strong>@(s.Paciente ?? "Sin paciente")</strong>
-                @if (s.EsPrueba) { <span class="etiqueta">prueba</span> }
-                <span class="fecha">@Hora.FechaHora(s.Inicio)</span>
-            </span>
-            <span class="dato">@Textos.Ejercicio(s.Ejercicio): <strong>@Textos.Num(s.DistanciaM) m</strong> en @Textos.Minutos(s.DuracionS)</span>
-            <span class="estado @(s.Estado == "completa" ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
-        </a>
-    }
-</section>
+@if (lista.Count == 0)
+{
+    <p class="ayuda">No hay sesiones.</p>
+}
+else
+{
+    <div class="lista">
+        @foreach (var s in lista)
+        {
+            <a class="sesion" href="/sesiones/@s.Id">
+                <span>
+                    <strong>@(s.Paciente ?? "Sin paciente") · @Textos.Ejercicio(s.Ejercicio) @if (s.EsPrueba) { <span class="etiqueta">prueba</span> }</strong>
+                    <small>@Hora.Cercana(s.Inicio) · @Textos.Num(s.DistanciaM, "0.##") m · @Textos.Minutos(s.DuracionS) · Sesión @s.Codigo</small>
+                </span>
+                <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
+            </a>
+        }
+    </div>
+}
 
 @code {
     [SupplyParameterFromQuery] private string? Paciente { get; set; }
@@ -45,7 +47,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        pacientes = await Gafas.CodigosPacientesAsync();
+        pacientes = await VisoresRepo.CodigosPacientesAsync();
         lista = await Repo.ListarAsync(Paciente);
     }
 }
