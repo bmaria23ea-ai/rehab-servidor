@@ -25,6 +25,19 @@ public static class AccionesSesiones
             return Results.Redirect($"{destino}?ok=asignada");
         }).ExigirToken();
 
+        app.MapPost("/sesiones/{id}/paciente", async (ulong id, [FromForm] string? paciente,
+            Sesiones repo, ClaimsPrincipal u, Auditoria log) =>
+        {
+            var d = await repo.BuscarAsync(id);
+            if (d is null) return Results.NotFound();
+            string? nuevo = string.IsNullOrEmpty(paciente) ? null : paciente;
+            if (nuevo == d.Sesion.Paciente) return Results.Redirect($"/sesiones/{id}?ok=paciente");
+            if (!await repo.CambiarPacienteAsync(id, nuevo)) return Results.Redirect($"/sesiones/{id}?error=paciente");
+            await log.RegistrarAsync(u, "cambiar_paciente_sesion",
+                $"Sesión {d.Sesion.Codigo}: {d.Sesion.Paciente ?? "sin paciente"} → {nuevo ?? "sin paciente"}");
+            return Results.Redirect($"/sesiones/{id}?ok=paciente");
+        }).ExigirToken();
+
         app.MapPost("/sesiones/{id}/observacion", async (ulong id, [FromForm] string? texto,
             Observaciones repo, Sesiones sesiones, ClaimsPrincipal u, Auditoria log) =>
         {

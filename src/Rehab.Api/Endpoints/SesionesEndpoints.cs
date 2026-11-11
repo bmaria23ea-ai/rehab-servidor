@@ -22,6 +22,8 @@ public static partial class SesionesEndpoints
 
     public sealed record RespuestaSesion(Guid SesionId, string Estado);
 
+    private const int MinutosAsignacion = 30;
+
     private static readonly HashSet<string> Motivos =
         ["completada", "detenida", "salida_menu", "visor_retirado", "app_pausada", "error"];
 
@@ -133,6 +135,20 @@ public static partial class SesionesEndpoints
             minuto.Parameters.AddWithValue("@minuto", i + 1);
             minuto.Parameters.AddWithValue("@dist", Math.Round(minutos[i], 2));
             await minuto.ExecuteNonQueryAsync(ct);
+        }
+
+        // Paciente en uso: renueva la asignación del visor 30 min desde el fin de la sesión
+        if (pacienteId is int asignado)
+        {
+            await using var renovar = new MySqlCommand(
+                "UPDATE asignaciones SET expira_utc = GREATEST(expira_utc, " +
+                "LEAST(@fin, UTC_TIMESTAMP(3)) + INTERVAL @minutos MINUTE) " +
+                "WHERE visor_id = @visor AND paciente_id = @paciente AND expira_utc > UTC_TIMESTAMP(3)", cn, tx);
+            renovar.Parameters.AddWithValue("@fin", s.FinUtc);
+            renovar.Parameters.AddWithValue("@minutos", MinutosAsignacion);
+            renovar.Parameters.AddWithValue("@visor", visorId);
+            renovar.Parameters.AddWithValue("@paciente", asignado);
+            await renovar.ExecuteNonQueryAsync(ct);
         }
 
         await tx.CommitAsync(ct);

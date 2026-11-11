@@ -77,7 +77,7 @@ Los comandos se ejecutan dentro del contenedor de la API. No están disponibles 
 | `paciente-nuevo <código> <AAAA-MM-DD> <versión>` | Registra un paciente real con la fecha y versión de su consentimiento |
 | `paciente-prueba <código>` | Registra un paciente ficticio para pruebas |
 | `paciente-lista` | Lista los pacientes |
-| `asignacion-nueva <visor> <paciente> [horas]` | Asigna un paciente a un visor (vence a las 4 horas por defecto) |
+| `asignacion-nueva <visor> <paciente> [min]` | Asigna un paciente a un visor (vence a los 30 minutos sin sesiones; cada sesión recibida la renueva) |
 | `asignacion-quitar <visor>` | Quita la asignación del visor |
 | `asignacion-lista` | Lista las asignaciones vigentes y vencidas |
 | `sesion-sin-asignar` | Lista las sesiones que llegaron sin paciente |

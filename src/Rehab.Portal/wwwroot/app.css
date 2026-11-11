@@ -123,6 +123,8 @@ a.sesion:hover { background: #F8FAFC; }
 .ficha { background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); padding: 1rem; margin: .75rem 0; }
 .ficha header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
 .ficha p { margin: .5rem 0; }
+.ultima { display: block; margin: .5rem 0; font-size: .9rem; color: var(--texto-2); text-decoration: none; overflow-wrap: anywhere; }
+.ultima:hover { color: var(--primario); }
 .dos-columnas { display: grid; gap: 1.25rem; }
 @media (min-width: 900px) { .dos-columnas { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); align-items: start; } }
 .menu { display: grid; gap: .6rem; margin: 1rem 0; }

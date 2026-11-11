@@ -21,7 +21,7 @@ public sealed class Sesiones(MySqlDataSource ds)
 
     private const string Base =
         "SELECT s.id, p.codigo, s.ejercicio, s.es_prueba, s.inicio_utc, s.duracion_real_s, s.estado, s.motivo_fin, c.distancia_m, " +
-        "c.tiempo_detenido_s, c.num_paradas, c.largo_pista_m, s.duracion_configurada_s, v.nombre, s.sesion_uuid " +
+        "c.tiempo_detenido_s, c.num_paradas, c.largo_pista_m, s.duracion_configurada_s, v.nombre, s.sesion_uuid, s.visor_id " +
         "FROM sesiones s LEFT JOIN pacientes p ON p.id = s.paciente_id " +
         "JOIN visores v ON v.id = s.visor_id " +
         "LEFT JOIN caminata_resultados c ON c.sesion_id = s.id ";
@@ -99,6 +99,32 @@ public sealed class Sesiones(MySqlDataSource ds)
         await using var m = await min.ExecuteReaderAsync();
         while (await m.ReadAsync()) d.Minutos.Add(Convert.ToDecimal(m.GetValue(0)));
         return d;
+    }
+
+    // Última sesión recibida de cada visor
+    public async Task<Dictionary<string, SesionFila>> UltimasPorVisorAsync()
+    {
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand(Base +
+            "WHERE s.id IN (SELECT MAX(id) FROM sesiones GROUP BY visor_id)", cn);
+        await using var r = await cmd.ExecuteReaderAsync();
+        var d = new Dictionary<string, SesionFila>();
+        while (await r.ReadAsync()) d[Convert.ToString(r.GetValue(15))!] = Fila(r);
+        return d;
+    }
+
+    // null = dejarla sin paciente. El paciente de prueba marca la sesión como prueba.
+    public async Task<bool> CambiarPacienteAsync(ulong id, string? codigo)
+    {
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand(codigo is null
+            ? "UPDATE sesiones SET paciente_id = NULL, asignada_utc = NULL WHERE id = @id"
+            : "UPDATE sesiones s JOIN pacientes p ON p.codigo = @codigo " +
+              "SET s.paciente_id = p.id, s.asignada_utc = UTC_TIMESTAMP(3), s.es_prueba = s.es_prueba OR p.es_prueba " +
+              "WHERE s.id = @id", cn);
+        cmd.Parameters.AddWithValue("@codigo", codigo);
+        cmd.Parameters.AddWithValue("@id", id);
+        return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
     // Para el registro de actividad: "Sesión 3F9A"

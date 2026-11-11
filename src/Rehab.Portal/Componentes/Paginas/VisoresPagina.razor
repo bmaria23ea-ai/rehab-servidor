@@ -1,5 +1,6 @@
 @page "/visores"
 @inject Visores Repo
+@inject Sesiones SesionesRepo
 
 <PageTitle>Visores</PageTitle>
 
@@ -62,7 +63,12 @@
         {
             if (v.Paciente is not null)
             {
-                <p>Paciente asignado: <strong>@v.Paciente</strong> <span class="ayuda">hasta las @(v.Expira is { } e ? Hora.SoloHora(e) : "-")</span></p>
+                <p>Paciente asignado: <strong>@v.Paciente</strong> <span class="ayuda">vence a las @(v.Expira is { } e ? Hora.SoloHora(e) : "-") si no hay sesiones</span></p>
+            }
+
+            if (ultimas.TryGetValue(v.Id.ToString(), out var u))
+            {
+                <a class="ultima" href="/sesiones/@u.Id">Última sesión: @Hora.Cercana(u.Inicio) · @(u.Paciente ?? "Sin paciente") · Sesión @u.Codigo · @Textos.Motivo(u.Motivo) ›</a>
             }
 
             <form method="post" action="/visores/@v.Id/asignar" class="fila">
@@ -111,6 +117,7 @@
     [SupplyParameterFromQuery] private string? Error { get; set; }
     private List<VisorFila> lista = [];
     private List<string> pacientes = [];
+    private Dictionary<string, SesionFila> ultimas = [];
 
     private static readonly Dictionary<string, string> Mensajes = new()
     {
@@ -135,5 +142,6 @@
     {
         lista = await Repo.ListarAsync();
         pacientes = await Repo.CodigosPacientesAsync();
+        ultimas = await SesionesRepo.UltimasPorVisorAsync();
     }
 }

@@ -9,7 +9,7 @@ namespace Rehab.Api.Admin;
 
 public static partial class ComandosAsignacion
 {
-    private const int HorasPorDefecto = 4;
+    private const int MinutosPorDefecto = 30;
     private static readonly TimeSpan HoraEcuador = TimeSpan.FromHours(-5);   // Ecuador continental, sin horario de verano
 
     [GeneratedRegex(@"^P-[0-9]{3,6}$")]
@@ -41,12 +41,12 @@ public static partial class ComandosAsignacion
     }
 
     // Asigna un paciente a un visor. Reemplaza la asignación anterior del visor.
-    private static async Task<int> NuevaAsync(MySqlDataSource ds, ushort visorId, string codigo, string? horasTexto)
+    private static async Task<int> NuevaAsync(MySqlDataSource ds, ushort visorId, string codigo, string? minutosTexto)
     {
-        int horas = HorasPorDefecto;
-        if (horasTexto is not null && (!int.TryParse(horasTexto, out horas) || horas is < 1 or > 12))
+        int minutos = MinutosPorDefecto;
+        if (minutosTexto is not null && (!int.TryParse(minutosTexto, out minutos) || minutos is < 5 or > 240))
         {
-            Console.Error.WriteLine("Horas no válidas: entre 1 y 12.");
+            Console.Error.WriteLine("Minutos no válidos: entre 5 y 240.");
             return 1;
         }
 
@@ -63,15 +63,15 @@ public static partial class ComandosAsignacion
 
         await using var cmd = new MySqlCommand(
             "INSERT INTO asignaciones (visor_id, paciente_id, expira_utc) " +
-            "VALUES (@visor, @paciente, UTC_TIMESTAMP(3) + INTERVAL @horas HOUR) " +
+            "VALUES (@visor, @paciente, UTC_TIMESTAMP(3) + INTERVAL @minutos MINUTE) " +
             "ON DUPLICATE KEY UPDATE paciente_id = VALUES(paciente_id), creada_utc = UTC_TIMESTAMP(3), " +
             "expira_utc = VALUES(expira_utc)", cn);
         cmd.Parameters.AddWithValue("@visor", visorId);
         cmd.Parameters.AddWithValue("@paciente", paciente.Value.Id);
-        cmd.Parameters.AddWithValue("@horas", horas);
+        cmd.Parameters.AddWithValue("@minutos", minutos);
         await cmd.ExecuteNonQueryAsync();
 
-        var hasta = DateTime.UtcNow.AddHours(horas) + HoraEcuador;
+        var hasta = DateTime.UtcNow.AddMinutes(minutos) + HoraEcuador;
         Console.WriteLine($"Visor #{visorId} asignado a {codigo.ToUpperInvariant()} hasta las {hasta:HH:mm} (hora de Ecuador).");
         return 0;
     }
@@ -190,7 +190,7 @@ public static partial class ComandosAsignacion
     {
         Console.Error.WriteLine("""
             Comandos:
-              asignacion-nueva <visor> <paciente> [horas]   Asigna un paciente a un visor (por defecto 4 horas)
+              asignacion-nueva <visor> <paciente> [min]     Asigna un paciente a un visor (por defecto 30 minutos)
               asignacion-quitar <visor>                      Quita la asignación del visor
               asignacion-lista                               Muestra las asignaciones
               sesion-sin-asignar                             Sesiones recibidas sin paciente

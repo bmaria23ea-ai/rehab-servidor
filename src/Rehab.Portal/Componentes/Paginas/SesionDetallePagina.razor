@@ -25,6 +25,8 @@ else
     </div>
 
     @if (Ok == "asignada") { <p class="exito">Sesión asignada.</p> }
+    @if (Ok == "paciente") { <p class="exito">Paciente de la sesión guardado.</p> }
+    @if (Error == "paciente") { <p class="error">No se pudo cambiar el paciente.</p> }
     @if (Ok == "observacion") { <p class="exito">Observación guardada.</p> }
     @if (Ok == "borrada") { <p class="exito">Observación borrada.</p> }
     @if (Error == "asignar") { <p class="error">No se pudo asignar. Elija un paciente.</p> }
@@ -76,23 +78,21 @@ else
         </form>
     </section>
 
-    @if (s.Paciente is null)
-    {
-        <section class="panel">
-            <h2>Asignar a un paciente</h2>
-            <form method="post" action="/sesiones/@s.Id/asignar" class="fila">
-                <AntiforgeryToken />
-                <select name="paciente" aria-label="Paciente" required>
-                    <option value="" disabled selected>Elegir paciente</option>
-                    @foreach (var c in pacientes)
-                    {
-                        <option value="@c">@c</option>
-                    }
-                </select>
-                <button type="submit">Asignar</button>
-            </form>
-        </section>
-    }
+    <section class="panel">
+        <h2>Paciente de la sesión</h2>
+        <form method="post" action="/sesiones/@s.Id/paciente" class="fila">
+            <AntiforgeryToken />
+            <select name="paciente" aria-label="Paciente">
+                <option value="" selected="@(s.Paciente is null)">Sin paciente</option>
+                @foreach (var c in pacientes)
+                {
+                    <option value="@c" selected="@(c == s.Paciente)">@c</option>
+                }
+            </select>
+            <button type="submit">Guardar</button>
+        </form>
+        <p class="ayuda">Si la sesión quedó con el paciente equivocado, elija el correcto o déjela sin paciente.</p>
+    </section>
 }
 
 @code {
@@ -109,6 +109,6 @@ else
         d = await Repo.BuscarAsync((ulong)Id);
         if (d is null) return;
         nota = await Notas.BuscarAsync((ulong)Id);
-        if (d.Sesion.Paciente is null) pacientes = await VisoresRepo.CodigosPacientesAsync();
+        pacientes = await VisoresRepo.CodigosPacientesAsync();
     }
 }

@@ -8,8 +8,8 @@ public sealed record VisorFila(ushort Id, string Nombre, string Estado, DateTime
 
 public sealed partial class Visores(MySqlDataSource ds)
 {
-    // Límite de seguridad: si nadie cambia o quita al paciente, la asignación se borra sola.
-    public const int HorasAsignacion = 4;
+    // Sin sesiones en este tiempo la asignación vence sola; cada sesión recibida la renueva (API)
+    public const int MinutosAsignacion = 30;
 
     [GeneratedRegex(@"^[\p{L}\p{N} ._-]{1,40}$")]
     private static partial Regex NombreValido();
@@ -86,12 +86,12 @@ public sealed partial class Visores(MySqlDataSource ds)
         await using var cn = await ds.OpenConnectionAsync();
         await using var cmd = new MySqlCommand(
             "INSERT INTO asignaciones (visor_id, paciente_id, expira_utc) " +
-            "SELECT v.id, p.id, UTC_TIMESTAMP(3) + INTERVAL @horas HOUR " +
+            "SELECT v.id, p.id, UTC_TIMESTAMP(3) + INTERVAL @minutos MINUTE " +
             "FROM visores v JOIN pacientes p ON p.codigo = @paciente " +
             "WHERE v.id = @visor AND v.estado = 'activo' " +
             "ON DUPLICATE KEY UPDATE paciente_id = VALUES(paciente_id), creada_utc = UTC_TIMESTAMP(3), " +
             "expira_utc = VALUES(expira_utc)", cn);
-        cmd.Parameters.AddWithValue("@horas", HorasAsignacion);
+        cmd.Parameters.AddWithValue("@minutos", MinutosAsignacion);
         cmd.Parameters.AddWithValue("@paciente", codigoPaciente);
         cmd.Parameters.AddWithValue("@visor", visorId);
         return await cmd.ExecuteNonQueryAsync() > 0 ? null : "asignar";
