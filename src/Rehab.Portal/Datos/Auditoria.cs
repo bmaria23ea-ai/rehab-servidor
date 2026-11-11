@@ -42,12 +42,15 @@ public sealed class Auditoria(MySqlDataSource ds)
         "cambiar_clave" => "Cambió su contraseña",
         "registrar_paciente" => "Registró paciente",
         "exportar_paciente" => "Descargó datos de paciente",
+        "exportar_todo" => "Descargó datos de todos los pacientes",
         "eliminar_paciente" => "Eliminó paciente y sus datos",
         "aprobar_gafas" => "Vinculó visor",
         "asignar_gafas" => "Asignó paciente a visor",
         "quitar_gafas" => "Liberó visor",
         "desactivar_gafas" => "Desvinculó visor",
         "asignar_sesion" => "Asignó sesión a paciente",
+        "observacion_sesion" => "Escribió observación de sesión",
+        "borrar_observacion" => "Borró observación de sesión",
         _ => accion,
     };
 }

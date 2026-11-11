@@ -5,7 +5,7 @@ namespace Rehab.Portal.Datos;
 
 public sealed record SesionFila(ulong Id, string? Paciente, string Ejercicio, bool EsPrueba, DateTime Inicio,
                                 decimal DuracionS, string Estado, string Motivo, decimal? DistanciaM,
-                                int? Paradas, string Visor, string Codigo)
+                                int? Paradas, decimal? DetenidoS, string Visor, string Codigo)
 {
     public bool Completa => Estado == "completa";
 }
@@ -101,6 +101,15 @@ public sealed class Sesiones(MySqlDataSource ds)
         return d;
     }
 
+    // Para el registro de actividad: "Sesión 3F9A"
+    public async Task<string> NombreAsync(ulong id)
+    {
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand("SELECT sesion_uuid FROM sesiones WHERE id = @id", cn);
+        cmd.Parameters.AddWithValue("@id", id);
+        return await cmd.ExecuteScalarAsync() is { } uuid and not DBNull ? $"Sesión {CodigoCorto(uuid)}" : $"Sesión {id}";
+    }
+
     // Solo sesiones que llegaron sin paciente; el paciente de prueba marca la sesión como prueba.
     public async Task<bool> AsignarAsync(ulong id, string codigo)
     {
@@ -117,7 +126,7 @@ public sealed class Sesiones(MySqlDataSource ds)
     private static SesionFila Fila(MySqlDataReader r) => new(
         Convert.ToUInt64(r.GetValue(0)), r.IsDBNull(1) ? null : r.GetString(1), r.GetString(2), r.GetBoolean(3),
         r.GetDateTime(4), Convert.ToDecimal(r.GetValue(5)), r.GetString(6), r.GetString(7), Dec(r, 8),
-        r.IsDBNull(10) ? null : Convert.ToInt32(r.GetValue(10)), r.GetString(13), CodigoCorto(r.GetValue(14)));
+        r.IsDBNull(10) ? null : Convert.ToInt32(r.GetValue(10)), Dec(r, 9), r.GetString(13), CodigoCorto(r.GetValue(14)));
 
     // Primeros 4 caracteres del UUID de la sesión; el visor muestra el mismo código
     public static string CodigoCorto(object uuid) =>
@@ -145,12 +154,10 @@ public static class Textos
         _ => "Error",
     };
 
-    public static string SeDetuvo(int? paradas) => paradas switch
-    {
-        null => "-",
-        > 0 => "Sí",
-        _ => "No",
-    };
+    public static string Paradas(int? n) => n?.ToString(CultureInfo.InvariantCulture) ?? "-";
+
+    // 15.4 -> "15 s"
+    public static string Segundos(decimal? s) => s is null ? "-" : Num(s, "0") + " s";
 
     // 46.03 -> "46,0"
     public static string Num(decimal? n, string formato = "0.0") =>

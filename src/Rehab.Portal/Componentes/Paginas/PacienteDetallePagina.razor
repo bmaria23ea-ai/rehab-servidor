@@ -1,57 +1,167 @@
 @page "/pacientes/{Codigo}"
+@using System.Globalization
 @inject Pacientes Repo
+@inject Sesiones SesionesRepo
 
 <PageTitle>@Codigo</PageTitle>
 
-<section class="panel">
-    <p><a href="/pacientes">← Pacientes</a></p>
+<a class="volver" href="/pacientes">‹ Pacientes</a>
 
-    @if (p is null)
+@if (p is null)
+{
+    <p>El paciente no existe.</p>
+}
+else
+{
+    <div class="encabezado">
+        <div>
+            <h1>@p.Codigo @if (p.EsPrueba) { <span class="etiqueta">prueba</span> }</h1>
+            <span class="subtitulo">Última sesión: @Hora.Fecha(p.UltimaSesion)@(p.EsPrueba ? "" : $" · Consentimiento {Hora.Dia(p.Consentimiento)} ({p.Version})")</span>
+        </div>
+    </div>
+
+    @if (Error == "confirmar") { <p class="error">Escriba el código del paciente para confirmar.</p> }
+    @if (Error == "eliminar") { <p class="error">No se pudo eliminar.</p> }
+
+    <nav class="pestanas" aria-label="Ejercicio">
+        <a href="/pacientes/@p.Codigo" aria-current="@(Pestana == "marcha" ? "page" : null)">Marcha</a>
+        <a href="/pacientes/@p.Codigo?ejercicio=respiracion" aria-current="@(Pestana == "respiracion" ? "page" : null)">Respiración</a>
+        <a href="/pacientes/@p.Codigo?ejercicio=gimnasio" aria-current="@(Pestana == "gimnasio" ? "page" : null)">Gimnasio</a>
+    </nav>
+
+    @if (Pestana != "marcha")
     {
-        <p>El paciente no existe.</p>
+        <p class="ayuda">Todavía no hay datos de este ejercicio.</p>
+    }
+    else if (marcha.Count == 0)
+    {
+        <p class="ayuda">Todavía no hay sesiones de marcha.</p>
     }
     else
     {
-        <h1>@p.Codigo @if (p.EsPrueba) { <span class="etiqueta">prueba</span> }</h1>
-
-        @if (Error == "confirmar") { <p class="error">Escriba el código del paciente para confirmar.</p> }
-        @if (Error == "eliminar") { <p class="error">No se pudo eliminar.</p> }
-
+        var u = marcha[0];
         <div class="resumen">
-            <div><span>Sesiones</span><strong>@p.Sesiones</strong></div>
-            <div><span>Última sesión</span><strong>@Hora.Fecha(p.UltimaSesion)</strong></div>
+            <div><span>Última distancia</span><strong>@Textos.Num(u.DistanciaM, "0.##") m</strong></div>
+            <div><span>Tiempo de exposición</span><strong>@Textos.Minutos(u.DuracionS)</strong></div>
+            <div><span>Veces que se detuvo</span><strong>@Textos.Paradas(u.Paradas)</strong></div>
+            <div><span>Tiempo detenido</span><strong>@Textos.Segundos(u.DetenidoS)</strong></div>
         </div>
-        @if (!p.EsPrueba)
-        {
-            <p class="ayuda">Consentimiento: @Hora.Dia(p.Consentimiento) (formulario @p.Version)</p>
-        }
 
-        <nav class="menu">
-            <a href="/sesiones?paciente=@p.Codigo">Ver sus sesiones</a>
-            <a href="/pacientes/@p.Codigo/exportar">Descargar sus datos (Excel)</a>
-        </nav>
+        <section class="panel">
+            <h2>Distancia por sesión</h2>
+            <svg class="grafico" viewBox="0 0 340 190" role="img" aria-label="@descripcion">
+                @foreach (var g in guias)
+                {
+                    <g>
+                        <line x1="34" x2="334" y1="@g.Y" y2="@g.Y" stroke="#E6EAEF"></line>
+                        <text x="28" y="@g.YTexto" text-anchor="end" font-size="10" fill="#5B6672">@g.Valor</text>
+                    </g>
+                }
+                @foreach (var b in barras)
+                {
+                    <g>
+                        <rect x="@b.X" y="@b.Y" width="@b.Ancho" height="@b.Alto" rx="3" fill="@b.Color"></rect>
+                        <text x="@b.Centro" y="@b.YValor" text-anchor="middle" font-size="9" fill="#3A4552">@b.Valor</text>
+                        <text x="@b.Centro" y="178" text-anchor="middle" font-size="9" fill="#5B6672">@b.Fecha</text>
+                    </g>
+                }
+            </svg>
+            <div class="leyenda">
+                <span><i class="muestra completa"></i>Completa</span>
+                <span><i class="muestra interrumpida"></i>Interrumpida</span>
+            </div>
+        </section>
 
-        @if (p.Codigo != "P-000")
-        {
-            <details class="bloque avanzado">
-                <summary class="peligro">Eliminar paciente y todos sus datos</summary>
-                <p class="ayuda">Se usa cuando el paciente retira su consentimiento o pide borrar sus datos. Se borran el paciente y todas sus sesiones y no se puede deshacer. Descargue antes sus datos si los necesita.</p>
-                <form method="post" action="/pacientes/@p.Codigo/eliminar">
-                    <AntiforgeryToken />
-                    <label>Escriba <strong>@p.Codigo</strong> para confirmar
-                        <input name="confirmar" autocomplete="off" autocapitalize="characters" required />
-                    </label>
-                    <button class="rojo" type="submit">Eliminar definitivamente</button>
-                </form>
-            </details>
-        }
+        <h2>Sesiones de marcha</h2>
+        <div class="lista">
+            @foreach (var s in marcha)
+            {
+                <a class="sesion" href="/sesiones/@s.Id">
+                    <span>
+                        <strong>@Hora.FechaHora(s.Inicio)</strong>
+                        <small>@Textos.Num(s.DistanciaM, "0.##") m · @Textos.Minutos(s.DuracionS) · Paradas: @Textos.Paradas(s.Paradas) · Detenido: @Textos.Segundos(s.DetenidoS)</small>
+                    </span>
+                    <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
+                </a>
+            }
+        </div>
     }
-</section>
+
+    <h2>Datos del paciente</h2>
+    <div class="fila">
+        <a class="boton" href="/pacientes/@p.Codigo/exportar">Descargar datos de @p.Codigo (Excel)</a>
+    </div>
+
+    @if (p.Codigo != "P-000")
+    {
+        <details class="bloque avanzado">
+            <summary class="peligro">Eliminar paciente y todos sus datos</summary>
+            <p class="ayuda">Se usa cuando el paciente retira su consentimiento o pide borrar sus datos. Se borran el paciente y todas sus sesiones y no se puede deshacer. Descargue antes sus datos si los necesita.</p>
+            <form method="post" action="/pacientes/@p.Codigo/eliminar">
+                <AntiforgeryToken />
+                <label>Escriba <strong>@p.Codigo</strong> para confirmar
+                    <input name="confirmar" autocomplete="off" autocapitalize="characters" required />
+                </label>
+                <button class="rojo" type="submit">Eliminar definitivamente</button>
+            </form>
+        </details>
+    }
+}
 
 @code {
     [Parameter] public string Codigo { get; set; } = "";
     [SupplyParameterFromQuery] private string? Error { get; set; }
-    private PacienteFila? p;
+    [SupplyParameterFromQuery(Name = "ejercicio")] private string? Ejercicio { get; set; }
 
-    protected override async Task OnInitializedAsync() => p = await Repo.BuscarAsync(Codigo.ToUpperInvariant());
+    private string Pestana => Ejercicio is "respiracion" or "gimnasio" ? Ejercicio! : "marcha";
+    private PacienteFila? p;
+    private List<SesionFila> marcha = [];
+    private List<Barra> barras = [];
+    private List<Guia> guias = [];
+    private string descripcion = "";
+
+    private sealed record Barra(string X, string Y, string Ancho, string Alto, string Centro, string YValor, string Color, string? Valor, string Fecha);
+    private sealed record Guia(string Y, string YTexto, string Valor);
+
+    private static string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+
+    protected override async Task OnInitializedAsync()
+    {
+        p = await Repo.BuscarAsync(Codigo.ToUpperInvariant());
+        if (p is null) return;
+        marcha = (await SesionesRepo.ListarAsync(p.Codigo)).Where(s => s.Ejercicio == "caminata_6m").ToList();
+        if (marcha.Count > 0) Graficar();
+    }
+
+    // Últimas 12 sesiones, de la más antigua a la más reciente
+    private void Graficar()
+    {
+        var datos = marcha.Take(12).Reverse().ToList();
+        double maximo = Math.Max(10, Math.Ceiling((double)datos.Max(s => s.DistanciaM ?? 0) / 10) * 10);
+        const double izq = 34, ancho = 300, arriba = 20, alto = 140;
+        double hueco = ancho / datos.Count;
+        double barra = Math.Min(28, hueco * 0.6);
+        bool etiquetas = datos.Count <= 8;
+
+        foreach (var v in new[] { 0, maximo / 2, maximo })
+        {
+            double y = arriba + alto - v / maximo * alto;
+            guias.Add(new Guia(F(y), F(y + 3), Textos.Num((decimal)v, "0") + " m"));
+        }
+
+        for (int i = 0; i < datos.Count; i++)
+        {
+            var s = datos[i];
+            double d = (double)(s.DistanciaM ?? 0);
+            double h = d / maximo * alto;
+            double x = izq + i * hueco + (hueco - barra) / 2;
+            double y = arriba + alto - h;
+            barras.Add(new Barra(F(x), F(y), F(barra), F(h), F(x + barra / 2), F(y - 4),
+                s.Completa ? "#1D4E89" : "#A9BCD0",
+                etiquetas ? Textos.Num(s.DistanciaM, "0.#") : null,
+                Hora.Ecuador(s.Inicio).ToString("dd/MM")));
+        }
+
+        descripcion = $"Distancia por sesión: de {Textos.Num((decimal)datos.Min(s => (double)(s.DistanciaM ?? 0)), "0.#")} a {Textos.Num((decimal)datos.Max(s => (double)(s.DistanciaM ?? 0)), "0.#")} metros en {datos.Count} sesiones.";
+    }
 }

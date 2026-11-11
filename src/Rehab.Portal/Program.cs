@@ -42,6 +42,8 @@ builder.Services.AddSingleton<Pacientes>();
 builder.Services.AddSingleton<Visores>();
 builder.Services.AddSingleton<Sesiones>();
 builder.Services.AddSingleton<Auditoria>();
+builder.Services.AddSingleton<Observaciones>();
+builder.Services.AddSingleton<Exportacion>();
 
 builder.Services.AddDataProtection().SetApplicationName("rehab-portal");
 builder.Services.Configure<KeyManagementOptions>(o => o.XmlRepository = new ClavesMariaDb(ds));
@@ -142,6 +144,7 @@ app.MapAccionesPacientes();
 // Si el navegador abre por GET la dirección de un formulario (Atrás o recargar), vuelve a la página.
 app.MapGet("/visores/{**resto}", () => Results.Redirect("/visores"));
 app.MapGet("/sesiones/{id:long}/asignar", (long id) => Results.Redirect($"/sesiones/{id}"));
+app.MapGet("/sesiones/{id:long}/observacion/{**resto}", (long id) => Results.Redirect($"/sesiones/{id}"));
 app.MapGet("/pacientes/{codigo}/eliminar", (string codigo) => Results.Redirect($"/pacientes/{codigo}"));
 app.MapGet("/salir", () => Results.Redirect("/"));
 

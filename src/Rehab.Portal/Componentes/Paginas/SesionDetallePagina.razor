@@ -1,58 +1,88 @@
 @page "/sesiones/{Id:long}"
 @using System.Globalization
 @inject Sesiones Repo
-@inject Visores Gafas
+@inject Visores VisoresRepo
+@inject Observaciones Notas
 
 <PageTitle>Sesión</PageTitle>
 
-<section class="panel">
-    <p><a href="/sesiones">← Sesiones</a></p>
+@if (d is null)
+{
+    <a class="volver" href="/sesiones">‹ Sesiones</a>
+    <p>La sesión no existe.</p>
+}
+else
+{
+    var s = d.Sesion;
+    <a class="volver" href="@(s.Paciente is null ? "/" : $"/pacientes/{s.Paciente}")">‹ @(s.Paciente ?? "Inicio")</a>
 
-    @if (d is null)
-    {
-        <p>La sesión no existe.</p>
-    }
-    else
-    {
-        var s = d.Sesion;
-        <h1>@Textos.Ejercicio(s.Ejercicio) · @(s.Paciente ?? "Sin paciente")</h1>
-        <p class="ayuda">@Hora.FechaHora(s.Inicio) @if (s.EsPrueba) { <span class="etiqueta">prueba</span> }</p>
-
-        @if (Ok == "asignada") { <p class="exito">Sesión asignada.</p> }
-        @if (Error == "asignar") { <p class="error">No se pudo asignar. Elija un paciente.</p> }
-
-        <div class="resumen">
-            <div><span>Distancia</span><strong>@Textos.Num(s.DistanciaM) m</strong></div>
-            <div><span>Duración</span><strong>@Textos.Minutos(s.DuracionS)</strong></div>
-            <div><span>Paradas</span><strong>@(d.Paradas?.ToString() ?? "-")</strong></div>
-            <div><span>Tiempo detenido</span><strong>@Textos.Num(d.TiempoDetenidoS) s</strong></div>
+    <div class="encabezado">
+        <div>
+            <span class="subtitulo">@Textos.Ejercicio(s.Ejercicio) · @s.Visor · Sesión @s.Codigo</span>
+            <h1>@Hora.FechaHora(s.Inicio) @if (s.EsPrueba) { <span class="etiqueta">prueba</span> }</h1>
         </div>
+        <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
+    </div>
 
-        <p><span class="estado @(s.Estado == "completa" ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
-            @if (s.Estado != "completa") { <span class="ayuda"> (prevista de @Textos.Minutos(d.DuracionConfiguradaS))</span> }</p>
+    @if (Ok == "asignada") { <p class="exito">Sesión asignada.</p> }
+    @if (Ok == "observacion") { <p class="exito">Observación guardada.</p> }
+    @if (Ok == "borrada") { <p class="exito">Observación borrada.</p> }
+    @if (Error == "asignar") { <p class="error">No se pudo asignar. Elija un paciente.</p> }
+    @if (Error == "observacion") { <p class="error">No se pudo guardar. Escriba la observación (máximo @Observaciones.Maximo caracteres).</p> }
 
-        @if (d.Minutos.Count > 0)
-        {
-            var max = d.Minutos.Max() is > 0 and var m ? m : 1;
-            <h2>Metros por minuto</h2>
+    <div class="resumen">
+        <div><span>Distancia</span><strong>@Textos.Num(s.DistanciaM, "0.##") m</strong></div>
+        <div><span>Tiempo de exposición</span><strong>@Textos.Minutos(s.DuracionS)</strong></div>
+        <div><span>Veces que se detuvo</span><strong>@Textos.Paradas(s.Paradas)</strong></div>
+        <div><span>Tiempo detenido</span><strong>@Textos.Segundos(s.DetenidoS)</strong></div>
+    </div>
+
+    @if (d.Minutos.Count > 0)
+    {
+        var max = d.Minutos.Max() is > 0 and var m ? m : 1;
+        <section class="panel">
+            <h2>Metros en cada minuto</h2>
             <div class="barras">
                 @for (int i = 0; i < d.Minutos.Count; i++)
                 {
                     <div class="barra-fila">
                         <span>Min @(i + 1)</span>
                         <progress value="@d.Minutos[i].ToString(CultureInfo.InvariantCulture)" max="@max.ToString(CultureInfo.InvariantCulture)"></progress>
-                        <span>@Textos.Num(d.Minutos[i]) m</span>
+                        <span>@Textos.Num(d.Minutos[i], "0.##") m</span>
                     </div>
                 }
             </div>
-        }
+        </section>
+    }
 
-        @if (s.Paciente is null)
-        {
+    <section class="panel">
+        <form method="post" action="/sesiones/@s.Id/observacion">
+            <AntiforgeryToken />
+            <label>Observaciones
+                <textarea name="texto" maxlength="@Observaciones.Maximo" required>@(nota?.Texto)</textarea>
+            </label>
+            <p class="ayuda">No escriba nombres ni datos que identifiquen al paciente.</p>
+            <div class="fila">
+                <button type="submit">Guardar</button>
+                @if (nota is not null)
+                {
+                    <button type="submit" class="claro" formaction="/sesiones/@s.Id/observacion/borrar" formnovalidate>Borrar</button>
+                }
+            </div>
+            @if (nota is not null)
+            {
+                <p class="ayuda">Guardado @Hora.FechaHora(nota.Actualizado) · @nota.Terapeuta</p>
+            }
+        </form>
+    </section>
+
+    @if (s.Paciente is null)
+    {
+        <section class="panel">
             <h2>Asignar a un paciente</h2>
             <form method="post" action="/sesiones/@s.Id/asignar" class="fila">
                 <AntiforgeryToken />
-                <select name="paciente" required>
+                <select name="paciente" aria-label="Paciente" required>
                     <option value="" disabled selected>Elegir paciente</option>
                     @foreach (var c in pacientes)
                     {
@@ -61,25 +91,24 @@
                 </select>
                 <button type="submit">Asignar</button>
             </form>
-        }
-
-        @if (d.LargoPistaM is not null)
-        {
-            <p class="ayuda">Largo de la pista: @Textos.Num(d.LargoPistaM) m</p>
-        }
+        </section>
     }
-</section>
+}
 
 @code {
     [Parameter] public long Id { get; set; }
     [SupplyParameterFromQuery] private string? Ok { get; set; }
     [SupplyParameterFromQuery] private string? Error { get; set; }
     private SesionDetalle? d;
+    private Observacion? nota;
     private List<string> pacientes = [];
 
     protected override async Task OnInitializedAsync()
     {
-        d = Id > 0 ? await Repo.BuscarAsync((ulong)Id) : null;
-        if (d?.Sesion.Paciente is null) pacientes = await Gafas.CodigosPacientesAsync();
+        if (Id <= 0) return;
+        d = await Repo.BuscarAsync((ulong)Id);
+        if (d is null) return;
+        nota = await Notas.BuscarAsync((ulong)Id);
+        if (d.Sesion.Paciente is null) pacientes = await VisoresRepo.CodigosPacientesAsync();
     }
 }
