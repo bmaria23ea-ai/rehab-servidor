@@ -39,7 +39,7 @@ document.querySelectorAll("form.mediciones").forEach(f => {
         aviso.hidden = errores.length === 0;
         if (aviso.hidden) return;
         const t = document.createElement("strong");
-        t.textContent = "Revise los valores en rojo";
+        t.textContent = "Revise los valores";
         const ul = document.createElement("ul");
         errores.forEach(e => { const li = document.createElement("li"); li.textContent = e; ul.append(li); });
         aviso.append(t, ul);
