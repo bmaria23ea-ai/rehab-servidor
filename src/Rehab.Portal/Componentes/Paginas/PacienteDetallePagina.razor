@@ -23,6 +23,7 @@ else
 
     @if (Error == "confirmar") { <p class="error">Escriba el código del paciente para confirmar.</p> }
     @if (Error == "eliminar") { <p class="error">No se pudo eliminar.</p> }
+    @if (Ok == "sesion_eliminada") { <p class="exito">Sesión y datos eliminados.</p> }
 
     <nav class="pestanas" aria-label="Ejercicio">
         <a href="/pacientes/@p.Codigo" aria-current="@(Pestana == "marcha" ? "page" : null)">Marcha</a>

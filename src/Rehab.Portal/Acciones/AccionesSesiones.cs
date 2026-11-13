@@ -67,6 +67,16 @@ public static class AccionesSesiones
             return Results.Redirect($"/sesiones/{id}?ok=observacion");
         }).ExigirToken();
 
+        app.MapPost("/sesiones/{id}/eliminar", async (ulong id, [FromForm] string? confirmar, Sesiones repo, ClaimsPrincipal u, Auditoria log) =>
+        {
+            if ((await repo.BuscarAsync(id))?.Sesion is not { } s) return Results.Redirect("/sesiones");
+            if (!string.Equals(confirmar?.Trim(), s.Codigo, StringComparison.OrdinalIgnoreCase))
+                return Results.Redirect($"/sesiones/{id}?error=confirmar#eliminar");
+            if (!await repo.EliminarAsync(id)) return Results.Redirect($"/sesiones/{id}?error=eliminar#eliminar");
+            await log.RegistrarAsync(u, "eliminar_sesion", $"Sesión {s.Codigo}");
+            return Results.Redirect(s.Paciente is null ? "/sesiones?eliminada=1" : $"/pacientes/{s.Paciente}?ok=sesion_eliminada");
+        }).ExigirToken();
+
         app.MapPost("/sesiones/{id}/observacion/borrar", async (ulong id, Observaciones repo, Sesiones sesiones, ClaimsPrincipal u, Auditoria log) =>
         {
             if (await repo.BorrarAsync(id)) await log.RegistrarAsync(u, "borrar_observacion", await sesiones.NombreAsync(id));

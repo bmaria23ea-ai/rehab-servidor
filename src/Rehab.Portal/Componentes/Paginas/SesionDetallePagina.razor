@@ -104,6 +104,20 @@ else
         </form>
         <p class="ayuda">Si la sesión quedó con el paciente equivocado, elija el correcto o déjela sin paciente.</p>
     </section>
+
+    <details class="bloque avanzado" id="eliminar" open="@(Error is "confirmar" or "eliminar")">
+        <summary class="peligro">Eliminar sesión y sus datos</summary>
+        <p class="ayuda">Se borran la sesión, sus resultados, mediciones y observación. No se puede deshacer. Descargue antes los datos si los necesita.</p>
+        @if (Error == "confirmar") { <p class="error">Escriba el código de la sesión para confirmar.</p> }
+        @if (Error == "eliminar") { <p class="error">No se pudo eliminar.</p> }
+        <form method="post" action="/sesiones/@s.Id/eliminar">
+            <AntiforgeryToken />
+            <label>Escriba <strong>@s.Codigo</strong> para confirmar
+                <input name="confirmar" autocomplete="off" autocapitalize="characters" required />
+            </label>
+            <button class="rojo" type="submit">Eliminar definitivamente</button>
+        </form>
+    </details>
 }
 
 @code {

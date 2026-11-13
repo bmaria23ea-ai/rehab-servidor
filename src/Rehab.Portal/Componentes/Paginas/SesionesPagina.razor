@@ -9,6 +9,11 @@
     <a class="boton" href="/sesiones/exportar">Descargar todo (Excel)</a>
 </div>
 
+@if (Eliminada is not null)
+{
+    <p class="exito">Sesión y datos eliminados.</p>
+}
+
 <form method="get" class="fila">
     <select name="paciente" aria-label="Paciente">
         <option value="" selected="@(string.IsNullOrEmpty(Paciente))">Todos los pacientes</option>
@@ -43,6 +48,7 @@ else
 
 @code {
     [SupplyParameterFromQuery] private string? Paciente { get; set; }
+    [SupplyParameterFromQuery] private string? Eliminada { get; set; }
     private List<SesionFila> lista = [];
     private List<string> pacientes = [];
 

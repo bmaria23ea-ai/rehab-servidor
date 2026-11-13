@@ -127,6 +127,15 @@ public sealed class Sesiones(MySqlDataSource ds)
         return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
+    // Borra la sesión; resultados, minutos, observación y mediciones se borran en cascada.
+    public async Task<bool> EliminarAsync(ulong id)
+    {
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand("DELETE FROM sesiones WHERE id = @id", cn);
+        cmd.Parameters.AddWithValue("@id", id);
+        return await cmd.ExecuteNonQueryAsync() > 0;
+    }
+
     // Para el registro de actividad: "Sesión 3F9A"
     public async Task<string> NombreAsync(ulong id)
     {
