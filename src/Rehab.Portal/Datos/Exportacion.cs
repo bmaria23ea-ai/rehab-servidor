@@ -15,6 +15,7 @@ public sealed class Exportacion(MySqlDataSource ds)
     {
         await using var cn = await ds.OpenConnectionAsync();
         var minutos = await MinutosAsync(cn, codigo);
+        var mediciones = await MedicionesAsync(cn, codigo);
         int columnas = Math.Max(MinutosPrueba, minutos.Values.Select(m => m.Count).DefaultIfEmpty(0).Max());
 
         await using var cmd = new MySqlCommand(
@@ -47,6 +48,15 @@ public sealed class Exportacion(MySqlDataSource ds)
             };
             var m = minutos.TryGetValue(id, out var lista) ? lista : [];
             for (int i = 0; i < columnas; i++) fila.Add(new(i < m.Count ? (object)m[i] : null, 4));
+            var med = mediciones.GetValueOrDefault(id);
+            foreach (var mo in Mediciones.Cronologico)
+            {
+                var v = med?.GetValueOrDefault(mo.Clave);
+                fila.Add(new(v?.Fc));
+                fila.Add(new(v?.SpO2));
+                fila.Add(new(v?.Borg, 5));
+                if (mo.ConPa) { fila.Add(new(v?.PaSis)); fila.Add(new(v?.PaDia)); }
+            }
             fila.Add(new(r.IsDBNull(9) ? null : r.GetString(9), 6));
             filas.Add(fila.ToArray());
         }
@@ -55,10 +65,33 @@ public sealed class Exportacion(MySqlDataSource ds)
                                          "Tiempo de exposición (min)", "Distancia (m)", "Veces que se detuvo", "Tiempo detenido (s)" };
         var anchos = new List<double> { 13, 11, 12, 8, 14, 18, 14, 12, 12, 12 };
         for (int i = 1; i <= columnas; i++) { titulos.Add($"Minuto {i} (m)"); anchos.Add(11); }
+        foreach (var mo in Mediciones.Cronologico)
+        {
+            titulos.AddRange([$"{mo.Nombre} FC (lpm)", $"{mo.Nombre} SpO₂ (%)", $"{mo.Nombre} Borg disnea"]);
+            if (mo.ConPa) titulos.AddRange([$"{mo.Nombre} PA sistólica (mmHg)", $"{mo.Nombre} PA diastólica (mmHg)"]);
+        }
+        while (anchos.Count < titulos.Count) anchos.Add(12);
         titulos.Add("Observaciones");
         anchos.Add(50);
 
         return Excel.Crear([new Hoja("Marcha", titulos.ToArray(), anchos.ToArray(), filas)]);
+    }
+
+    private static async Task<Dictionary<ulong, Dictionary<string, Medicion>>> MedicionesAsync(MySqlConnection cn, string? codigo)
+    {
+        await using var cmd = new MySqlCommand(
+            "SELECT m.sesion_id, m.momento, m.fc, m.spo2, m.borg, m.pa_sistolica, m.pa_diastolica " +
+            Desde + "JOIN marcha_mediciones m ON m.sesion_id = s.id " + Donde, cn);
+        cmd.Parameters.AddWithValue("@codigo", (object?)codigo ?? DBNull.Value);
+        await using var r = await cmd.ExecuteReaderAsync();
+        var d = new Dictionary<ulong, Dictionary<string, Medicion>>();
+        while (await r.ReadAsync())
+        {
+            ulong id = Convert.ToUInt64(r.GetValue(0));
+            if (!d.TryGetValue(id, out var porMomento)) d[id] = porMomento = [];
+            porMomento[r.GetString(1)] = Mediciones.Leer(r, 2);
+        }
+        return d;
     }
 
     private static async Task<Dictionary<ulong, List<decimal>>> MinutosAsync(MySqlConnection cn, string? codigo)

@@ -3,6 +3,7 @@
 @inject Sesiones Repo
 @inject Visores VisoresRepo
 @inject Observaciones Notas
+@inject Mediciones MedicionesRepo
 
 <PageTitle>Sesión</PageTitle>
 
@@ -30,6 +31,9 @@ else
     @if (Ok == "observacion") { <p class="exito">Observación guardada.</p> }
     @if (Ok == "borrada") { <p class="exito">Observación borrada.</p> }
     @if (Error == "asignar") { <p class="error">No se pudo asignar. Elija un paciente.</p> }
+    @if (Ok == "mediciones") { <p class="exito">Mediciones guardadas.</p> }
+    @if (Ok == "mediciones_borradas") { <p class="exito">Mediciones borradas.</p> }
+    @if (Error == "mediciones") { <p class="error">No se guardaron las mediciones. Revise: FC 20–250, SpO₂ 0–100, Borg 0–10 (de 0,5 en 0,5) y PA con sus dos valores, la sistólica mayor que la diastólica.</p> }
     @if (Error == "observacion") { <p class="error">No se pudo guardar. Escriba la observación (máximo @Observaciones.Maximo caracteres).</p> }
 
     <div class="resumen">
@@ -54,6 +58,16 @@ else
                     </div>
                 }
             </div>
+        </section>
+    }
+
+    @if (s.Ejercicio == "caminata_6m")
+    {
+        <section class="panel" id="s@(s.Id)">
+            <details class="med-desplegable" open="@(med is not null || Error == "mediciones")">
+                <summary>@(med is null ? "Agregar mediciones" : "Mediciones registradas")</summary>
+                <FormMediciones SesionId="(long)s.Id" Datos="med" />
+            </details>
         </section>
     }
 
@@ -101,6 +115,7 @@ else
     [SupplyParameterFromQuery] private string? Error { get; set; }
     private SesionDetalle? d;
     private Observacion? nota;
+    private Dictionary<string, Medicion>? med;
     private List<string> pacientes = [];
 
     protected override async Task OnInitializedAsync()
@@ -109,6 +124,7 @@ else
         d = await Repo.BuscarAsync((ulong)Id);
         if (d is null) return;
         nota = await Notas.BuscarAsync((ulong)Id);
+        med = (await MedicionesRepo.DeSesionesAsync([(ulong)Id])).GetValueOrDefault((ulong)Id);
         pacientes = await VisoresRepo.CodigosPacientesAsync();
     }
 }

@@ -52,6 +52,8 @@ public sealed class Auditoria(MySqlDataSource ds)
         "cambiar_paciente_sesion" => "Cambió paciente de sesión",
         "observacion_sesion" => "Escribió observación de sesión",
         "borrar_observacion" => "Borró observación de sesión",
+        "mediciones_sesion" => "Registró mediciones de sesión",
+        "borrar_mediciones" => "Borró mediciones de sesión",
         _ => accion,
     };
 }

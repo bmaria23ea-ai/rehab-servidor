@@ -2,6 +2,7 @@
 @using System.Globalization
 @inject Pacientes Repo
 @inject Sesiones SesionesRepo
+@inject Mediciones MedicionesRepo
 
 <PageTitle>@Codigo</PageTitle>
 
@@ -22,6 +23,9 @@ else
 
     @if (Error == "confirmar") { <p class="error">Escriba el código del paciente para confirmar.</p> }
     @if (Error == "eliminar") { <p class="error">No se pudo eliminar.</p> }
+    @if (Ok == "mediciones") { <p class="exito">Mediciones guardadas.</p> }
+    @if (Ok == "mediciones_borradas") { <p class="exito">Mediciones borradas.</p> }
+    @if (Error == "mediciones") { <p class="error">No se guardaron las mediciones. Revise: FC 20–250, SpO₂ 0–100, Borg 0–10 (de 0,5 en 0,5) y PA con sus dos valores, la sistólica mayor que la diastólica.</p> }
 
     <nav class="pestanas" aria-label="Ejercicio">
         <a href="/pacientes/@p.Codigo" aria-current="@(Pestana == "marcha" ? "page" : null)">Marcha</a>
@@ -76,13 +80,20 @@ else
         <div class="lista">
             @foreach (var s in marcha)
             {
-                <a class="sesion" href="/sesiones/@s.Id">
-                    <span>
-                        <strong>@Hora.FechaHora(s.Inicio)</strong>
-                        <small>@Textos.Num(s.DistanciaM, "0.##") m · @Textos.Minutos(s.DuracionS) · Paradas: @Textos.Paradas(s.Paradas) · Detenido: @Textos.Segundos(s.DetenidoS)</small>
-                    </span>
-                    <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
-                </a>
+                var datos = mediciones.GetValueOrDefault(s.Id);
+                <div class="sesion-bloque" id="s@(s.Id)">
+                    <a class="sesion" href="/sesiones/@s.Id">
+                        <span>
+                            <strong>@Hora.FechaHora(s.Inicio)</strong>
+                            <small>@Textos.Num(s.DistanciaM, "0.##") m · @Textos.Minutos(s.DuracionS) · Paradas: @Textos.Paradas(s.Paradas) · Detenido: @Textos.Segundos(s.DetenidoS)</small>
+                        </span>
+                        <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
+                    </a>
+                    <details class="med-desplegable" open="@(S == (long)s.Id && Error == "mediciones")">
+                        <summary>@(datos is null ? "Agregar mediciones" : "Mediciones registradas")</summary>
+                        <FormMediciones SesionId="(long)s.Id" Datos="datos" Volver="@p.Codigo" />
+                    </details>
+                </div>
             }
         </div>
     }
@@ -111,11 +122,14 @@ else
 @code {
     [Parameter] public string Codigo { get; set; } = "";
     [SupplyParameterFromQuery] private string? Error { get; set; }
+    [SupplyParameterFromQuery] private string? Ok { get; set; }
+    [SupplyParameterFromQuery] private long? S { get; set; }
     [SupplyParameterFromQuery(Name = "ejercicio")] private string? Ejercicio { get; set; }
 
     private string Pestana => Ejercicio is "respiracion" or "gimnasio" ? Ejercicio! : "marcha";
     private PacienteFila? p;
     private List<SesionFila> marcha = [];
+    private Dictionary<ulong, Dictionary<string, Medicion>> mediciones = [];
     private List<Barra> barras = [];
     private List<Guia> guias = [];
     private string descripcion = "";
@@ -130,7 +144,9 @@ else
         p = await Repo.BuscarAsync(Codigo.ToUpperInvariant());
         if (p is null) return;
         marcha = (await SesionesRepo.ListarAsync(p.Codigo)).Where(s => s.Ejercicio == "caminata_6m").ToList();
-        if (marcha.Count > 0) Graficar();
+        if (marcha.Count == 0) return;
+        Graficar();
+        mediciones = await MedicionesRepo.DeSesionesAsync(marcha.Select(s => s.Id).ToList());
     }
 
     // Últimas 12 sesiones, de la más antigua a la más reciente

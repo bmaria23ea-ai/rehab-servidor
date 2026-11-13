@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using Rehab.Portal.Datos;
 using Rehab.Portal.Seguridad;
@@ -38,6 +39,25 @@ public static class AccionesSesiones
             return Results.Redirect($"/sesiones/{id}?ok=paciente");
         }).ExigirToken();
 
+        app.MapPost("/sesiones/{id}/mediciones", async (ulong id, HttpRequest req,
+            Mediciones repo, Sesiones sesiones, ClaimsPrincipal u, Auditoria log) =>
+        {
+            var form = await req.ReadFormAsync();
+            string destino = Destino(form, id);
+            if (await repo.GuardarAsync(id, form, u.Identity!.Name!) is not null)
+                return Results.Redirect($"{destino}?error=mediciones&s={id}#s{id}");
+            await log.RegistrarAsync(u, "mediciones_sesion", await sesiones.NombreAsync(id));
+            return Results.Redirect($"{destino}?ok=mediciones&s={id}#s{id}");
+        }).ExigirToken();
+
+        app.MapPost("/sesiones/{id}/mediciones/borrar", async (ulong id, HttpRequest req,
+            Mediciones repo, Sesiones sesiones, ClaimsPrincipal u, Auditoria log) =>
+        {
+            var form = await req.ReadFormAsync();
+            if (await repo.BorrarAsync(id)) await log.RegistrarAsync(u, "borrar_mediciones", await sesiones.NombreAsync(id));
+            return Results.Redirect($"{Destino(form, id)}?ok=mediciones_borradas&s={id}#s{id}");
+        }).ExigirToken();
+
         app.MapPost("/sesiones/{id}/observacion", async (ulong id, [FromForm] string? texto,
             Observaciones repo, Sesiones sesiones, ClaimsPrincipal u, Auditoria log) =>
         {
@@ -52,5 +72,12 @@ public static class AccionesSesiones
             if (await repo.BorrarAsync(id)) await log.RegistrarAsync(u, "borrar_observacion", await sesiones.NombreAsync(id));
             return Results.Redirect($"/sesiones/{id}?ok=borrada");
         }).ExigirToken();
+    }
+
+    // volver: código de paciente validado; evita redirección abierta
+    private static string Destino(IFormCollection form, ulong id)
+    {
+        string volver = form["volver"].ToString();
+        return Regex.IsMatch(volver, "^P-[0-9]{3,6}$") ? $"/pacientes/{volver}" : $"/sesiones/{id}";
     }
 }

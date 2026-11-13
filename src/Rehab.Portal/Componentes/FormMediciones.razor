@@ -1,0 +1,51 @@
+@* Mediciones del terapeuta en la marcha: oxímetro (FC, SpO2), Borg disnea y tensiómetro (PA) *@
+<form method="post" action="/sesiones/@SesionId/mediciones" class="mediciones">
+    <AntiforgeryToken />
+    @if (Volver is not null)
+    {
+        <input type="hidden" name="volver" value="@Volver" />
+    }
+    <div class="med-cabecera" aria-hidden="true">
+        <span></span><span>FC (lpm)</span><span>SpO₂ (%)</span><span>Borg disnea (0–10)</span><span class="med-pa"><span>PA sistólica (mmHg)</span><span>PA diastólica (mmHg)</span></span>
+    </div>
+    @foreach (var m in Mediciones.Ficha)
+    {
+        var v = Datos?.GetValueOrDefault(m.Clave);
+        <div class="med-fila" role="group" aria-label="@m.Nombre">
+            <strong>@m.Nombre</strong>
+            <label><span>FC (lpm)</span>
+                <input name="@(m.Clave)_fc" type="number" inputmode="numeric" min="20" max="250" step="1" value="@Mediciones.Valor(v?.Fc)" />
+            </label>
+            <label><span>SpO₂ (%)</span>
+                <input name="@(m.Clave)_spo2" type="number" inputmode="numeric" min="0" max="100" step="1" value="@Mediciones.Valor(v?.SpO2)" />
+            </label>
+            <label><span>Borg disnea</span>
+                <input name="@(m.Clave)_borg" type="number" inputmode="decimal" min="0" max="10" step="0.5" value="@Mediciones.Valor(v?.Borg)" />
+            </label>
+            @if (m.ConPa)
+            {
+                <div class="med-pa">
+                    <label><span>PA sistólica</span>
+                        <input name="@(m.Clave)_pas" type="number" inputmode="numeric" min="0" max="300" step="1" value="@Mediciones.Valor(v?.PaSis)" />
+                    </label>
+                    <label><span>PA diastólica</span>
+                        <input name="@(m.Clave)_pad" type="number" inputmode="numeric" min="0" max="300" step="1" value="@Mediciones.Valor(v?.PaDia)" />
+                    </label>
+                </div>
+            }
+        </div>
+    }
+    <div class="fila">
+        <button type="submit">Guardar</button>
+        @if (Datos is not null)
+        {
+            <button type="submit" class="claro" formaction="/sesiones/@SesionId/mediciones/borrar" formnovalidate>Borrar</button>
+        }
+    </div>
+</form>
+
+@code {
+    [Parameter, EditorRequired] public long SesionId { get; set; }
+    [Parameter] public Dictionary<string, Medicion>? Datos { get; set; }
+    [Parameter] public string? Volver { get; set; }
+}
