@@ -8,14 +8,14 @@ public sealed class Exportacion(MySqlDataSource ds)
     private const int MinutosPrueba = 6;
 
     private const string Desde = "FROM sesiones s LEFT JOIN pacientes p ON p.id = s.paciente_id ";
-    private const string Donde = "WHERE s.ejercicio = 'caminata_6m' AND (@codigo IS NULL OR p.codigo = @codigo) ";
+    private const string Donde = "WHERE s.ejercicio = 'caminata_6m' AND (@codigo IS NULL OR p.codigo = @codigo) AND (@sesion IS NULL OR s.id = @sesion) ";
 
-    // codigo null = todos, incluidas las sesiones sin paciente
-    public async Task<byte[]> CrearAsync(string? codigo)
+    // codigo null = todos, incluidas las sesiones sin paciente; sesion = solo esa sesión
+    public async Task<byte[]> CrearAsync(string? codigo, ulong? sesion = null)
     {
         await using var cn = await ds.OpenConnectionAsync();
-        var minutos = await MinutosAsync(cn, codigo);
-        var mediciones = await MedicionesAsync(cn, codigo);
+        var minutos = await MinutosAsync(cn, codigo, sesion);
+        var mediciones = await MedicionesAsync(cn, codigo, sesion);
         int columnas = Math.Max(MinutosPrueba, minutos.Values.Select(m => m.Count).DefaultIfEmpty(0).Max());
 
         await using var cmd = new MySqlCommand(
@@ -25,7 +25,7 @@ public sealed class Exportacion(MySqlDataSource ds)
             "LEFT JOIN caminata_resultados c ON c.sesion_id = s.id " +
             "LEFT JOIN sesion_observaciones o ON o.sesion_id = s.id " + Donde +
             "ORDER BY p.codigo IS NULL, p.codigo, s.inicio_utc", cn);
-        cmd.Parameters.AddWithValue("@codigo", (object?)codigo ?? DBNull.Value);
+        Filtro(cmd, codigo, sesion);
         await using var r = await cmd.ExecuteReaderAsync();
 
         var filas = new List<Celda[]>();
@@ -77,12 +77,12 @@ public sealed class Exportacion(MySqlDataSource ds)
         return Excel.Crear([new Hoja("Marcha", titulos.ToArray(), anchos.ToArray(), filas)]);
     }
 
-    private static async Task<Dictionary<ulong, Dictionary<string, Medicion>>> MedicionesAsync(MySqlConnection cn, string? codigo)
+    private static async Task<Dictionary<ulong, Dictionary<string, Medicion>>> MedicionesAsync(MySqlConnection cn, string? codigo, ulong? sesion)
     {
         await using var cmd = new MySqlCommand(
             "SELECT m.sesion_id, m.momento, m.fc, m.spo2, m.borg, m.pa_sistolica, m.pa_diastolica " +
             Desde + "JOIN marcha_mediciones m ON m.sesion_id = s.id " + Donde, cn);
-        cmd.Parameters.AddWithValue("@codigo", (object?)codigo ?? DBNull.Value);
+        Filtro(cmd, codigo, sesion);
         await using var r = await cmd.ExecuteReaderAsync();
         var d = new Dictionary<ulong, Dictionary<string, Medicion>>();
         while (await r.ReadAsync())
@@ -94,13 +94,13 @@ public sealed class Exportacion(MySqlDataSource ds)
         return d;
     }
 
-    private static async Task<Dictionary<ulong, List<decimal>>> MinutosAsync(MySqlConnection cn, string? codigo)
+    private static async Task<Dictionary<ulong, List<decimal>>> MinutosAsync(MySqlConnection cn, string? codigo, ulong? sesion)
     {
         await using var cmd = new MySqlCommand(
             "SELECT m.sesion_id, m.distancia_m " +
             Desde + "JOIN caminata_minutos m ON m.sesion_id = s.id " + Donde +
             "ORDER BY m.sesion_id, m.minuto", cn);
-        cmd.Parameters.AddWithValue("@codigo", (object?)codigo ?? DBNull.Value);
+        Filtro(cmd, codigo, sesion);
         await using var r = await cmd.ExecuteReaderAsync();
         var d = new Dictionary<ulong, List<decimal>>();
         while (await r.ReadAsync())
@@ -110,5 +110,11 @@ public sealed class Exportacion(MySqlDataSource ds)
             lista.Add(Convert.ToDecimal(r.GetValue(1)));
         }
         return d;
+    }
+
+    private static void Filtro(MySqlCommand cmd, string? codigo, ulong? sesion)
+    {
+        cmd.Parameters.AddWithValue("@codigo", (object?)codigo ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@sesion", (object?)sesion ?? DBNull.Value);
     }
 }

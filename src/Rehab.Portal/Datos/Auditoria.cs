@@ -43,6 +43,7 @@ public sealed class Auditoria(MySqlDataSource ds)
         "registrar_paciente" => "Registró paciente",
         "exportar_paciente" => "Descargó datos de paciente",
         "exportar_todo" => "Descargó datos de todos los pacientes",
+        "exportar_sesion" => "Descargó datos de sesión",
         "eliminar_paciente" => "Eliminó paciente y sus datos",
         "eliminar_sesion" => "Eliminó sesión y sus datos",
         "aprobar_gafas" => "Vinculó visor",

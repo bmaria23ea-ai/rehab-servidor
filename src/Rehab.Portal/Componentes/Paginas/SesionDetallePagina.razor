@@ -105,6 +105,14 @@ else
         <p class="ayuda">Si la sesión quedó con el paciente equivocado, elija el correcto o déjela sin paciente.</p>
     </section>
 
+    @if (s.Ejercicio == "caminata_6m")
+    {
+        <h2>Datos de la sesión</h2>
+        <div class="fila">
+            <a class="boton" href="/sesiones/@s.Id/exportar">Descargar sesión (Excel)</a>
+        </div>
+    }
+
     <details class="bloque avanzado" id="eliminar" open="@(Error is "confirmar" or "eliminar")">
         <summary class="peligro">Eliminar sesión y sus datos</summary>
         <p class="ayuda">Se borran la sesión, sus resultados, mediciones y observación. No se puede deshacer. Descargue antes los datos si los necesita.</p>
