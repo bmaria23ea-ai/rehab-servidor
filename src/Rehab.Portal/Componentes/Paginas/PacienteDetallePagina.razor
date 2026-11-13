@@ -23,9 +23,6 @@ else
 
     @if (Error == "confirmar") { <p class="error">Escriba el código del paciente para confirmar.</p> }
     @if (Error == "eliminar") { <p class="error">No se pudo eliminar.</p> }
-    @if (Ok == "mediciones") { <p class="exito">Mediciones guardadas.</p> }
-    @if (Ok == "mediciones_borradas") { <p class="exito">Mediciones borradas.</p> }
-    @if (Error == "mediciones") { <p class="error">No se guardaron las mediciones. Revise: FC 20–250, SpO₂ 0–100, Borg 0–10 (de 0,5 en 0,5) y PA con sus dos valores, la sistólica mayor que la diastólica.</p> }
 
     <nav class="pestanas" aria-label="Ejercicio">
         <a href="/pacientes/@p.Codigo" aria-current="@(Pestana == "marcha" ? "page" : null)">Marcha</a>
@@ -89,9 +86,9 @@ else
                         </span>
                         <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
                     </a>
-                    <details class="med-desplegable" open="@(S == (long)s.Id && Error == "mediciones")">
+                    <details class="med-desplegable" open="@(S == (long)s.Id && Mensaje is not null)">
                         <summary>@(datos is null ? "Agregar mediciones" : "Mediciones registradas")</summary>
-                        <FormMediciones SesionId="(long)s.Id" Datos="datos" Volver="@p.Codigo" />
+                        <FormMediciones SesionId="(long)s.Id" Datos="datos" Volver="@p.Codigo" Mensaje="@(S == (long)s.Id ? Mensaje : null)" Fallo="@(Error == "mediciones")" />
                     </details>
                 </div>
             }
@@ -125,6 +122,9 @@ else
     [SupplyParameterFromQuery] private string? Ok { get; set; }
     [SupplyParameterFromQuery] private long? S { get; set; }
     [SupplyParameterFromQuery(Name = "ejercicio")] private string? Ejercicio { get; set; }
+
+    private string? Mensaje => Error == "mediciones" ? "No se guardó. Revise los valores." :
+        Ok == "mediciones" ? "Mediciones guardadas." : Ok == "mediciones_borradas" ? "Mediciones borradas." : null;
 
     private string Pestana => Ejercicio is "respiracion" or "gimnasio" ? Ejercicio! : "marcha";
     private PacienteFila? p;
