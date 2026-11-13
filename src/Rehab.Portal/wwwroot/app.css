@@ -180,17 +180,23 @@ progress { width: 100%; height: 12px; accent-color: var(--primario); }
 .panel .med-desplegable { padding: 0; }
 .med-desplegable summary { cursor: pointer; font-weight: 600; color: var(--primario); min-height: 40px; display: flex; align-items: center; font-size: .95rem; }
 .mediciones { margin-top: .4rem; }
-.med-cabecera { display: none; }
-.med-fila { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem .6rem; padding: .7rem 0; border-top: 1px solid var(--linea); }
-.med-fila > strong { grid-column: 1 / -1; font-size: .95rem; }
-.med-fila label { display: flex; flex-direction: column; justify-content: flex-end; margin: 0; font-size: .8rem; font-weight: 500; color: var(--suave); min-width: 0; }
-.med-fila input { min-height: 44px; padding: .5rem .6rem; }
-.med-pa { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+.med-tabla { overflow-x: auto; }
+.med-tabla table { table-layout: fixed; min-width: 18rem; font-size: .8rem; }
+.med-tabla .med-c-mom { width: 3.7rem; }
+.med-tabla .med-c-pa { width: 34%; }
+.med-tabla th, .med-tabla td { padding: .3rem .1rem; white-space: normal; overflow-wrap: normal; vertical-align: middle; background: none; }
+.med-tabla thead th { text-align: center; line-height: 1.2; vertical-align: bottom; }
+.med-tabla thead small { display: block; font-weight: 500; font-size: .75rem; }
+.med-tabla tbody th { color: var(--texto); font-weight: 600; padding-left: 0; }
+.med-tabla tr > :first-child { position: sticky; left: 0; z-index: 1; background: var(--superficie); }
+.med-tabla tr:last-child > * { border-bottom: 0; }
+.med-tabla input { margin: 0; min-height: 44px; padding: .4rem 0; text-align: center; -moz-appearance: textfield; }
+.med-tabla input::-webkit-outer-spin-button, .med-tabla input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.med-pa { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: .1rem; color: var(--suave); }
+.oculto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (min-width: 700px) {
-  .med-cabecera, .med-fila { display: grid; grid-template-columns: 6.5rem repeat(3, minmax(0, 1fr)) minmax(0, 2fr); gap: .6rem; align-items: center; }
-  .med-cabecera { font-size: .8rem; color: var(--suave); font-weight: 600; padding-bottom: .3rem; }
-  .med-fila > strong { grid-column: auto; }
-  .med-fila label > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .med-fila input { margin: 0; }
-  .med-pa { grid-column: auto; }
+  .med-tabla table { font-size: .9rem; min-width: 0; }
+  .med-tabla .med-c-mom { width: 6.5rem; }
+  .med-tabla .med-c-pa { width: 34%; }
+  .med-tabla th, .med-tabla td { padding: .35rem .35rem; }
 }
