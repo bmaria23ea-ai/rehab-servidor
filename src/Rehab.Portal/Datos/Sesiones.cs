@@ -5,7 +5,8 @@ namespace Rehab.Portal.Datos;
 
 public sealed record SesionFila(ulong Id, string? Paciente, string Ejercicio, bool EsPrueba, DateTime Inicio,
                                 decimal DuracionS, string Estado, string Motivo, decimal? DistanciaM,
-                                int? Paradas, decimal? DetenidoS, string Visor, string Codigo, Gimnasio? Gym = null)
+                                int? Paradas, decimal? DetenidoS, string Visor, string Codigo, Gimnasio? Gym = null,
+                                int? RetirosMarcha = null)
 {
     public bool Completa => Estado == "completa";
 }
@@ -45,7 +46,7 @@ public sealed class Sesiones(MySqlDataSource ds)
         "s.escena, g.series_config, g.meta_por_serie, g.umbral_logro, g.retiros_visor, " +
         "(SELECT SUM(x.reps) FROM gimnasio_series x WHERE x.sesion_id = s.id), " +
         "(SELECT SUM(x.reps_validas) FROM gimnasio_series x WHERE x.sesion_id = s.id), " +
-        "(SELECT COUNT(*) FROM gimnasio_series x WHERE x.sesion_id = s.id) " +
+        "(SELECT COUNT(*) FROM gimnasio_series x WHERE x.sesion_id = s.id), c.retiros_visor " +
         "FROM sesiones s LEFT JOIN pacientes p ON p.id = s.paciente_id " +
         "JOIN visores v ON v.id = s.visor_id " +
         "LEFT JOIN caminata_resultados c ON c.sesion_id = s.id " +
@@ -217,7 +218,8 @@ public sealed class Sesiones(MySqlDataSource ds)
         r.IsDBNull(17) ? null : new Gimnasio(Textos.Escena(r.GetString(16)), Convert.ToInt32(r.GetValue(17)),
             Convert.ToInt32(r.GetValue(18)), Convert.ToDecimal(r.GetValue(19)), Convert.ToInt32(r.GetValue(20)),
             r.IsDBNull(21) ? 0 : Convert.ToInt32(r.GetValue(21)), r.IsDBNull(22) ? 0 : Convert.ToInt32(r.GetValue(22)),
-            Convert.ToInt32(r.GetValue(23))));
+            Convert.ToInt32(r.GetValue(23))),
+        r.IsDBNull(24) ? null : Convert.ToInt32(r.GetValue(24)));
 
     // Primeros 4 caracteres del UUID de la sesión; el visor muestra el mismo código
     public static string CodigoCorto(object uuid) =>

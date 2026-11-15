@@ -18,7 +18,7 @@ public static partial class SesionesEndpoints
 
     public sealed record CaminataV1(
         decimal? DistanciaM, decimal? LargoPistaM, decimal? TiempoDetenidoS, int? NumParadas,
-        decimal[]? DistanciaPorMinutoM);
+        decimal[]? DistanciaPorMinutoM, int? RetirosVisor);   // RetirosVisor opcional: los APK anteriores no lo envían
 
     public sealed record RespuestaSesion(Guid SesionId, string Estado);
 
@@ -115,14 +115,15 @@ public static partial class SesionesEndpoints
         }
 
         await using (var resultado = new MySqlCommand(
-            "INSERT INTO caminata_resultados (sesion_id, distancia_m, largo_pista_m, tiempo_detenido_s, num_paradas) " +
-            "VALUES (@id, @dist, @pista, @detenido, @paradas)", cn, tx))
+            "INSERT INTO caminata_resultados (sesion_id, distancia_m, largo_pista_m, tiempo_detenido_s, num_paradas, retiros_visor) " +
+            "VALUES (@id, @dist, @pista, @detenido, @paradas, @retiros)", cn, tx))
         {
             resultado.Parameters.AddWithValue("@id", id);
             resultado.Parameters.AddWithValue("@dist", Math.Round(c.DistanciaM!.Value, 2));
             resultado.Parameters.AddWithValue("@pista", c.LargoPistaM is { } p ? Math.Round(p, 2) : DBNull.Value);
             resultado.Parameters.AddWithValue("@detenido", Math.Round(c.TiempoDetenidoS!.Value, 1));
             resultado.Parameters.AddWithValue("@paradas", c.NumParadas);
+            resultado.Parameters.AddWithValue("@retiros", c.RetirosVisor);
             await resultado.ExecuteNonQueryAsync(ct);
         }
 
@@ -217,6 +218,7 @@ public static partial class SesionesEndpoints
         if (c.TiempoDetenidoS is null || c.TiempoDetenidoS < 0 || (s.DuracionRealS is decimal real && c.TiempoDetenidoS > real + 1))
             Error("caminata.tiempoDetenidoS", "Entre 0 y la duración real.");
         if (c.NumParadas is not (>= 0 and <= 1000)) Error("caminata.numParadas", "Entre 0 y 1000.");
+        if (c.RetirosVisor is not null and not (>= 0 and <= 1000)) Error("caminata.retirosVisor", "Entre 0 y 1000.");
 
         var m = c.DistanciaPorMinutoM;
         int maxMinutos = s.DuracionConfiguradaS is int conf ? (conf + 59) / 60 : 30;

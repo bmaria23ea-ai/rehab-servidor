@@ -20,7 +20,7 @@ public sealed class Exportacion(MySqlDataSource ds)
 
         await using var cmd = new MySqlCommand(
             "SELECT s.id, p.codigo, s.sesion_uuid, s.inicio_utc, v.nombre, s.motivo_fin, s.duracion_real_s, " +
-            "c.distancia_m, c.num_paradas, o.texto, c.tiempo_detenido_s " + Desde +
+            "c.distancia_m, c.num_paradas, o.texto, c.tiempo_detenido_s, c.retiros_visor " + Desde +
             "JOIN visores v ON v.id = s.visor_id " +
             "LEFT JOIN caminata_resultados c ON c.sesion_id = s.id " +
             "LEFT JOIN sesion_observaciones o ON o.sesion_id = s.id " + Donde +
@@ -45,6 +45,7 @@ public sealed class Exportacion(MySqlDataSource ds)
                 new(r.IsDBNull(7) ? null : (object)Convert.ToDecimal(r.GetValue(7)), 4),
                 new(r.IsDBNull(8) ? null : (object)Convert.ToInt32(r.GetValue(8))),
                 new(r.IsDBNull(10) ? null : (object)Convert.ToDecimal(r.GetValue(10)), 5),
+                new(r.IsDBNull(11) ? null : (object)Convert.ToInt32(r.GetValue(11))),
             };
             var m = minutos.TryGetValue(id, out var lista) ? lista : [];
             for (int i = 0; i < columnas; i++) fila.Add(new(i < m.Count ? (object)m[i] : null, 4));
@@ -62,8 +63,9 @@ public sealed class Exportacion(MySqlDataSource ds)
         }
 
         var titulos = new List<string> { "Código", "Sesión", "Fecha", "Hora", "Visor", "Cómo terminó",
-                                         "Tiempo de exposición (min)", "Distancia (m)", "Veces que se detuvo", "Tiempo detenido (s)" };
-        var anchos = new List<double> { 13, 11, 12, 8, 14, 18, 14, 12, 12, 12 };
+                                         "Tiempo de exposición (min)", "Distancia (m)", "Veces que se detuvo", "Tiempo detenido (s)",
+                                         "Visor retirado" };
+        var anchos = new List<double> { 13, 11, 12, 8, 14, 18, 14, 12, 12, 12, 12 };
         for (int i = 1; i <= columnas; i++) { titulos.Add($"Minuto {i} (m)"); anchos.Add(11); }
         foreach (var mo in Mediciones.Cronologico)
         {

@@ -157,7 +157,7 @@ else
                     <a class="sesion" href="/sesiones/@s.Id">
                         <span>
                             <strong>@Hora.FechaHora(s.Inicio)</strong>
-                            <small>@Textos.Num(s.DistanciaM, "0.##") m · @Textos.Minutos(s.DuracionS) · Paradas: @Textos.Paradas(s.Paradas) · Detenido: @Textos.Segundos(s.DetenidoS)</small>
+                            <small>@Textos.Num(s.DistanciaM, "0.##") m · @Textos.Minutos(s.DuracionS) · Paradas: @Textos.Paradas(s.Paradas) · Detenido: @Textos.Segundos(s.DetenidoS)@(s.RetirosMarcha is int rm ? $" · Visor retirado: {rm}" : "")</small>
                         </span>
                         <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
                     </a>

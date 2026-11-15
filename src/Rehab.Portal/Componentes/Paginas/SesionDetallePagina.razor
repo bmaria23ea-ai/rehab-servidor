@@ -54,6 +54,10 @@ else
             <div><span>Tiempo de exposición</span><strong>@Textos.Minutos(s.DuracionS)</strong></div>
             <div><span>Veces que se detuvo</span><strong>@Textos.Paradas(s.Paradas)</strong></div>
             <div><span>Tiempo detenido</span><strong>@Textos.Segundos(s.DetenidoS)</strong></div>
+            @if (s.RetirosMarcha is int rm)
+            {
+                <div><span>Visor retirado</span><strong>@rm</strong></div>
+            }
         </div>
     }
 
