@@ -33,12 +33,29 @@ else
     @if (Error == "asignar") { <p class="error">No se pudo asignar. Elija un paciente.</p> }
     @if (Error == "observacion") { <p class="error">No se pudo guardar. Escriba la observación (máximo @Observaciones.Maximo caracteres).</p> }
 
-    <div class="resumen">
-        <div><span>Distancia</span><strong>@Textos.Num(s.DistanciaM, "0.##") m</strong></div>
-        <div><span>Tiempo de exposición</span><strong>@Textos.Minutos(s.DuracionS)</strong></div>
-        <div><span>Veces que se detuvo</span><strong>@Textos.Paradas(s.Paradas)</strong></div>
-        <div><span>Tiempo detenido</span><strong>@Textos.Segundos(s.DetenidoS)</strong></div>
-    </div>
+    @if (s.Gym is { } g)
+    {
+        <div class="resumen">
+            <div><span>Repeticiones</span><strong>@g.Reps / @g.Meta</strong></div>
+            <div><span>Repeticiones válidas</span><strong>@g.Validas</strong></div>
+            <div><span>Duración</span><strong>@Textos.Minutos(s.DuracionS)</strong></div>
+            <div><span>Visor retirado</span><strong>@g.Retiros</strong></div>
+        </div>
+
+        <section class="panel">
+            <h2>Series</h2>
+            <TablaSeries Gym="g" Series="series" />
+        </section>
+    }
+    else
+    {
+        <div class="resumen">
+            <div><span>Distancia</span><strong>@Textos.Num(s.DistanciaM, "0.##") m</strong></div>
+            <div><span>Tiempo de exposición</span><strong>@Textos.Minutos(s.DuracionS)</strong></div>
+            <div><span>Veces que se detuvo</span><strong>@Textos.Paradas(s.Paradas)</strong></div>
+            <div><span>Tiempo detenido</span><strong>@Textos.Segundos(s.DetenidoS)</strong></div>
+        </div>
+    }
 
     @if (d.Minutos.Count > 0)
     {
@@ -105,7 +122,7 @@ else
         <p class="ayuda">Si la sesión quedó con el paciente equivocado, elija el correcto o déjela sin paciente.</p>
     </section>
 
-    @if (s.Ejercicio == "caminata_6m")
+    @if (s.Ejercicio == Sesiones.Marcha || s.Gym is not null)
     {
         <h2>Datos de la sesión</h2>
         <div class="fila">
@@ -138,6 +155,7 @@ else
     private SesionDetalle? d;
     private Observacion? nota;
     private Dictionary<string, Medicion>? med;
+    private List<Serie> series = [];
     private List<string> pacientes = [];
 
     protected override async Task OnInitializedAsync()
@@ -147,6 +165,7 @@ else
         if (d is null) return;
         nota = await Notas.BuscarAsync((ulong)Id);
         med = (await MedicionesRepo.DeSesionesAsync([(ulong)Id])).GetValueOrDefault((ulong)Id);
+        if (d.Sesion.Gym is not null) series = (await Repo.SeriesAsync([(ulong)Id])).GetValueOrDefault((ulong)Id, []);
         pacientes = await VisoresRepo.CodigosPacientesAsync();
     }
 }

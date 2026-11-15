@@ -18,7 +18,8 @@ public static class AccionesSesiones
 
         app.MapGet("/sesiones/{id}/exportar", async (ulong id, Sesiones repo, Exportacion excel, ClaimsPrincipal u, Auditoria log) =>
         {
-            if ((await repo.BuscarAsync(id))?.Sesion is not { Ejercicio: "caminata_6m" } s) return Results.NotFound();
+            if ((await repo.BuscarAsync(id))?.Sesion is not { } s || (s.Ejercicio != Sesiones.Marcha && s.Gym is null))
+                return Results.NotFound();
             await log.RegistrarAsync(u, "exportar_sesion", $"Sesión {s.Codigo}");
             string nombre = $"{(s.Paciente is null ? "Sin_paciente" : s.Paciente)}_Sesion_{s.Codigo}.xlsx";
             return Results.File(await excel.CrearAsync(null, id), Excel.Tipo, nombre);

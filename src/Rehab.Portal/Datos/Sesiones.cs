@@ -5,35 +5,61 @@ namespace Rehab.Portal.Datos;
 
 public sealed record SesionFila(ulong Id, string? Paciente, string Ejercicio, bool EsPrueba, DateTime Inicio,
                                 decimal DuracionS, string Estado, string Motivo, decimal? DistanciaM,
-                                int? Paradas, decimal? DetenidoS, string Visor, string Codigo)
+                                int? Paradas, decimal? DetenidoS, string Visor, string Codigo, Gimnasio? Gym = null)
 {
     public bool Completa => Estado == "completa";
 }
 
+// Resumen de una sesión del gimnasio; totales calculados al consultar
+public sealed record Gimnasio(string Escena, int Series, int MetaSerie, decimal Umbral, int Retiros,
+                              int Reps, int Validas, int SeriesHechas)
+{
+    public int Meta => Series * MetaSerie;
+    public int Porcentaje => Meta > 0 ? (int)Math.Round(100m * Reps / Meta, MidpointRounding.AwayFromZero) : 0;
+    public bool Lograda(int reps) => reps >= MetaSerie * Umbral;
+}
+
+public sealed record Serie(int Reps, int Validas);
+
 public sealed record ResumenHoy(int Sesiones, int Interrumpidas, int SinPaciente);
 
 public sealed record SesionDetalle(SesionFila Sesion, decimal? TiempoDetenidoS, int? Paradas, decimal? LargoPistaM,
-                                   decimal DuracionConfiguradaS, List<decimal> Minutos);
+                                   decimal? DuracionConfiguradaS, List<decimal> Minutos);
 
 public sealed class Sesiones(MySqlDataSource ds)
 {
     public const string SinPaciente = "sin";
+    public const string Marcha = "caminata_6m";
+    public const string Gimnasio = "gimnasio";
+
+    // Orden de los ejercicios del gimnasio en el portal
+    public static readonly string[] EjerciciosGimnasio =
+        ["brazos_frontal", "hombros", "giro_torso", "sentadilla_libre", "sentadilla_pesa"];
+
+    private static readonly string FiltroGimnasio =
+        "s.ejercicio IN (" + string.Join(", ", EjerciciosGimnasio.Select(e => $"'{e}'")) + ") ";
 
     private const string Base =
         "SELECT s.id, p.codigo, s.ejercicio, s.es_prueba, s.inicio_utc, s.duracion_real_s, s.estado, s.motivo_fin, c.distancia_m, " +
-        "c.tiempo_detenido_s, c.num_paradas, c.largo_pista_m, s.duracion_configurada_s, v.nombre, s.sesion_uuid, s.visor_id " +
+        "c.tiempo_detenido_s, c.num_paradas, c.largo_pista_m, s.duracion_configurada_s, v.nombre, s.sesion_uuid, s.visor_id, " +
+        "s.escena, g.series_config, g.meta_por_serie, g.umbral_logro, g.retiros_visor, " +
+        "(SELECT SUM(x.reps) FROM gimnasio_series x WHERE x.sesion_id = s.id), " +
+        "(SELECT SUM(x.reps_validas) FROM gimnasio_series x WHERE x.sesion_id = s.id), " +
+        "(SELECT COUNT(*) FROM gimnasio_series x WHERE x.sesion_id = s.id) " +
         "FROM sesiones s LEFT JOIN pacientes p ON p.id = s.paciente_id " +
         "JOIN visores v ON v.id = s.visor_id " +
-        "LEFT JOIN caminata_resultados c ON c.sesion_id = s.id ";
+        "LEFT JOIN caminata_resultados c ON c.sesion_id = s.id " +
+        "LEFT JOIN gimnasio_sesiones g ON g.sesion_id = s.id ";
 
-    public async Task<List<SesionFila>> ListarAsync(string? paciente)
+    // ejercicio: null = todos, Marcha o Gimnasio
+    public async Task<List<SesionFila>> ListarAsync(string? paciente, string? ejercicio = null)
     {
-        string filtro = paciente switch
-        {
-            null or "" => "",
-            SinPaciente => "WHERE s.paciente_id IS NULL ",
-            _ => "WHERE p.codigo = @paciente ",
-        };
+        var condiciones = new List<string>();
+        if (paciente == SinPaciente) condiciones.Add("s.paciente_id IS NULL ");
+        else if (!string.IsNullOrEmpty(paciente)) condiciones.Add("p.codigo = @paciente ");
+        if (ejercicio == Marcha) condiciones.Add("s.ejercicio = 'caminata_6m' ");
+        else if (ejercicio == Gimnasio) condiciones.Add(FiltroGimnasio);
+        string filtro = condiciones.Count == 0 ? "" : "WHERE " + string.Join("AND ", condiciones);
 
         await using var cn = await ds.OpenConnectionAsync();
         await using var cmd = new MySqlCommand(Base + filtro + "ORDER BY s.inicio_utc DESC LIMIT 200", cn);
@@ -90,7 +116,7 @@ public sealed class Sesiones(MySqlDataSource ds)
             await using var r = await cmd.ExecuteReaderAsync();
             if (!await r.ReadAsync()) return null;
             d = new SesionDetalle(Fila(r), Dec(r, 9), r.IsDBNull(10) ? null : Convert.ToInt32(r.GetValue(10)),
-                                  Dec(r, 11), Convert.ToDecimal(r.GetValue(12)), []);
+                                  Dec(r, 11), Dec(r, 12), []);
         }
 
         await using var min = new MySqlCommand(
@@ -98,6 +124,32 @@ public sealed class Sesiones(MySqlDataSource ds)
         min.Parameters.AddWithValue("@id", id);
         await using var m = await min.ExecuteReaderAsync();
         while (await m.ReadAsync()) d.Minutos.Add(Convert.ToDecimal(m.GetValue(0)));
+        return d;
+    }
+
+    // Series del gimnasio de varias sesiones, en orden
+    public async Task<Dictionary<ulong, List<Serie>>> SeriesAsync(IReadOnlyCollection<ulong> ids)
+    {
+        var d = new Dictionary<ulong, List<Serie>>();
+        if (ids.Count == 0) return d;
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand { Connection = cn };
+        var nombres = new List<string>(ids.Count);
+        int i = 0;
+        foreach (var id in ids)
+        {
+            nombres.Add($"@i{i}");
+            cmd.Parameters.AddWithValue($"@i{i++}", id);
+        }
+        cmd.CommandText = "SELECT sesion_id, reps, reps_validas FROM gimnasio_series " +
+                          $"WHERE sesion_id IN ({string.Join(", ", nombres)}) ORDER BY sesion_id, serie";
+        await using var r = await cmd.ExecuteReaderAsync();
+        while (await r.ReadAsync())
+        {
+            ulong id = Convert.ToUInt64(r.GetValue(0));
+            if (!d.TryGetValue(id, out var lista)) d[id] = lista = [];
+            lista.Add(new Serie(Convert.ToInt32(r.GetValue(1)), Convert.ToInt32(r.GetValue(2))));
+        }
         return d;
     }
 
@@ -161,7 +213,11 @@ public sealed class Sesiones(MySqlDataSource ds)
     private static SesionFila Fila(MySqlDataReader r) => new(
         Convert.ToUInt64(r.GetValue(0)), r.IsDBNull(1) ? null : r.GetString(1), r.GetString(2), r.GetBoolean(3),
         r.GetDateTime(4), Convert.ToDecimal(r.GetValue(5)), r.GetString(6), r.GetString(7), Dec(r, 8),
-        r.IsDBNull(10) ? null : Convert.ToInt32(r.GetValue(10)), Dec(r, 9), r.GetString(13), CodigoCorto(r.GetValue(14)));
+        r.IsDBNull(10) ? null : Convert.ToInt32(r.GetValue(10)), Dec(r, 9), r.GetString(13), CodigoCorto(r.GetValue(14)),
+        r.IsDBNull(17) ? null : new Gimnasio(Textos.Escena(r.GetString(16)), Convert.ToInt32(r.GetValue(17)),
+            Convert.ToInt32(r.GetValue(18)), Convert.ToDecimal(r.GetValue(19)), Convert.ToInt32(r.GetValue(20)),
+            r.IsDBNull(21) ? 0 : Convert.ToInt32(r.GetValue(21)), r.IsDBNull(22) ? 0 : Convert.ToInt32(r.GetValue(22)),
+            Convert.ToInt32(r.GetValue(23))));
 
     // Primeros 4 caracteres del UUID de la sesión; el visor muestra el mismo código
     public static string CodigoCorto(object uuid) =>
@@ -176,8 +232,21 @@ public static class Textos
     public static string Ejercicio(string e) => e switch
     {
         "caminata_6m" => "Marcha",
+        "brazos_frontal" => "Elevación frontal",
+        "hombros" => "Press de hombro",
+        "giro_torso" => "Giro de torso",
+        "sentadilla_libre" => "Sentadilla libre",
+        "sentadilla_pesa" => "Sentadilla con barra",
         _ => e,
     };
+
+    // "F-Hombros_gym" -> "F"
+    public static string Escena(string escena) =>
+        escena.Length > 1 && escena[1] == '-' && escena[0] is 'F' or 'M' ? escena[..1] : "-";
+
+    // Dato principal de la sesión en las listas: metros (marcha) o repeticiones (gimnasio)
+    public static string Logro(SesionFila s) =>
+        s.Gym is { } g ? $"{g.Reps} / {g.Meta} rep." : $"{Num(s.DistanciaM, "0.##")} m";
 
     public static string Motivo(string m) => m switch
     {

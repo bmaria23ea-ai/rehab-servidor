@@ -206,3 +206,12 @@ progress { width: 100%; height: 12px; accent-color: var(--primario); }
   .med-tabla .med-c-pa { width: 34%; }
   .med-tabla th, .med-tabla td { padding: .35rem .35rem; }
 }
+
+/* Gimnasio */
+.sub-pestanas { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 1rem; }
+.sub-pestanas a { min-height: 40px; display: inline-flex; align-items: center; padding: 0 .9rem; border: 1px solid var(--borde); border-radius: 999px; background: var(--superficie); color: var(--texto-2); text-decoration: none; font-size: .9rem; }
+.sub-pestanas a[aria-current="page"] { background: var(--primario); border-color: var(--primario); color: #fff; font-weight: 600; }
+.gym-series table { min-width: 0; }
+.gym-series td { text-align: center; }
+.muestra.novalidas { background: #9DB7D5; }
+.muestra.incompleta { background: none; border: 1.5px dashed #5B6672; }

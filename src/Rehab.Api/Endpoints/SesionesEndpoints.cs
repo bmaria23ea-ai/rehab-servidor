@@ -22,19 +22,19 @@ public static partial class SesionesEndpoints
 
     public sealed record RespuestaSesion(Guid SesionId, string Estado);
 
-    private const int MinutosAsignacion = 30;
+    internal const int MinutosAsignacion = 30;
 
     private static readonly HashSet<string> Motivos =
         ["completada", "detenida", "salida_menu", "visor_retirado", "app_pausada", "error"];
 
     [GeneratedRegex(@"^P-[0-9]{3,6}$")]
-    private static partial Regex CodigoPaciente();
+    internal static partial Regex CodigoPaciente();
 
     [GeneratedRegex(@"^[\p{L}\p{N} ._()-]{1,64}$")]
-    private static partial Regex NombreEscena();
+    internal static partial Regex NombreEscena();
 
     [GeneratedRegex(@"^[0-9A-Za-z.+-]{1,20}$")]
-    private static partial Regex VersionApp();
+    internal static partial Regex VersionApp();
 
     public static void MapSesiones(this IEndpointRouteBuilder app)
     {
@@ -157,7 +157,7 @@ public static partial class SesionesEndpoints
         return Results.Json(new RespuestaSesion(sesionId, "registrada"), statusCode: 201);
     }
 
-    private static async Task<bool> ExisteAsync(MySqlConnection cn, Guid sesionId, CancellationToken ct)
+    internal static async Task<bool> ExisteAsync(MySqlConnection cn, Guid sesionId, CancellationToken ct)
     {
         await using var cmd = new MySqlCommand("SELECT 1 FROM sesiones WHERE sesion_uuid = @uuid", cn);
         cmd.Parameters.AddWithValue("@uuid", sesionId.ToString("D"));

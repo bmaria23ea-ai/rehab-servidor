@@ -31,9 +31,83 @@ else
         <a href="/pacientes/@p.Codigo?ejercicio=gimnasio" aria-current="@(Pestana == "gimnasio" ? "page" : null)">Gimnasio</a>
     </nav>
 
-    @if (Pestana != "marcha")
+    @if (Pestana == "respiracion")
     {
         <p class="ayuda">Todavía no hay datos de este ejercicio.</p>
+    }
+    else if (Pestana == "gimnasio")
+    {
+        if (gimnasio.Count == 0)
+        {
+            <p class="ayuda">Todavía no hay sesiones del gimnasio.</p>
+        }
+        else
+        {
+            <nav class="sub-pestanas" aria-label="Ejercicio del gimnasio">
+                @foreach (var e in tipos)
+                {
+                    <a href="/pacientes/@p.Codigo?ejercicio=gimnasio&tipo=@e" aria-current="@(e == tipo ? "page" : null)">@Textos.Ejercicio(e)</a>
+                }
+            </nav>
+
+            var u = delTipo[0];
+            var ug = u.Gym!;
+            <div class="resumen">
+                <div><span>Repeticiones</span><strong>@ug.Reps / @ug.Meta</strong></div>
+                <div><span>Repeticiones válidas</span><strong>@ug.Validas</strong></div>
+                <div><span>Duración</span><strong>@Textos.Minutos(u.DuracionS)</strong></div>
+                <div><span>Visor retirado</span><strong>@ug.Retiros</strong></div>
+            </div>
+
+            <section class="panel">
+                <h2>Repeticiones por sesión (% de la meta)</h2>
+                <svg class="grafico" viewBox="0 0 340 190" role="img" aria-label="@descripcion">
+                    @foreach (var g in guias)
+                    {
+                        <g>
+                            <line x1="34" x2="334" y1="@g.Y" y2="@g.Y" stroke="#E6EAEF"></line>
+                            <text x="28" y="@g.YTexto" text-anchor="end" font-size="10" fill="#5B6672">@g.Valor</text>
+                        </g>
+                    }
+                    @foreach (var b in apiladas)
+                    {
+                        <g>
+                            @if (b.AltoValidas != "0") { <rect x="@b.X" y="@b.YValidas" width="@b.Ancho" height="@b.AltoValidas" fill="#1D4E89"></rect> }
+                            @if (b.AltoResto != "0") { <rect x="@b.X" y="@b.Y" width="@b.Ancho" height="@b.AltoResto" fill="#9DB7D5"></rect> }
+                            @if (!b.Completa) { <rect x="@b.XBorde" y="@b.YBorde" width="@b.AnchoBorde" height="@b.AltoBorde" fill="none" stroke="#5B6672" stroke-width="1.2" stroke-dasharray="3 2"></rect> }
+                            <text x="@b.Centro" y="@b.YValor" text-anchor="middle" font-size="9" fill="#3A4552">@b.Valor</text>
+                            <text x="@b.Centro" y="178" text-anchor="middle" font-size="9" fill="#5B6672">@b.Fecha</text>
+                        </g>
+                    }
+                </svg>
+                <div class="leyenda">
+                    <span><i class="muestra completa"></i>Válidas</span>
+                    <span><i class="muestra novalidas"></i>No válidas</span>
+                    <span><i class="muestra incompleta"></i>Sesión incompleta</span>
+                </div>
+            </section>
+
+            <h2>Sesiones de @Textos.Ejercicio(tipo).ToLowerInvariant()</h2>
+            <div class="lista">
+                @foreach (var s in delTipo)
+                {
+                    var g = s.Gym!;
+                    <div class="sesion-bloque" id="s@(s.Id)">
+                        <a class="sesion" href="/sesiones/@s.Id">
+                            <span>
+                                <strong>@Hora.FechaHora(s.Inicio)</strong>
+                                <small>@(s.Completa ? "" : $"Serie {g.SeriesHechas} de {g.Series} · ")@g.Reps / @g.Meta rep. (@g.Porcentaje %) · Válidas: @g.Validas · @Textos.Minutos(s.DuracionS) · Escena @g.Escena · Visor retirado: @g.Retiros</small>
+                            </span>
+                            <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
+                        </a>
+                        <details class="med-desplegable">
+                            <summary>Ver series</summary>
+                            <TablaSeries Gym="g" Series="@series.GetValueOrDefault(s.Id, [])" />
+                        </details>
+                    </div>
+                }
+            </div>
+        }
     }
     else if (marcha.Count == 0)
     {
@@ -123,6 +197,7 @@ else
     [SupplyParameterFromQuery] private string? Ok { get; set; }
     [SupplyParameterFromQuery] private long? S { get; set; }
     [SupplyParameterFromQuery(Name = "ejercicio")] private string? Ejercicio { get; set; }
+    [SupplyParameterFromQuery(Name = "tipo")] private string? Tipo { get; set; }
 
     private string? Mensaje => Error == "mediciones" ? "No se guardó. Revise los valores." :
         Ok == "mediciones" ? "Mediciones guardadas." : Ok == "mediciones_borradas" ? "Mediciones borradas." : null;
@@ -131,12 +206,21 @@ else
     private PacienteFila? p;
     private List<SesionFila> marcha = [];
     private Dictionary<ulong, Dictionary<string, Medicion>> mediciones = [];
+    private List<SesionFila> gimnasio = [];
+    private List<string> tipos = [];
+    private string tipo = "";
+    private List<SesionFila> delTipo = [];
+    private Dictionary<ulong, List<Serie>> series = [];
+    private List<Apilada> apiladas = [];
     private List<Barra> barras = [];
     private List<Guia> guias = [];
     private string descripcion = "";
 
     private sealed record Barra(string X, string Y, string Ancho, string Alto, string Centro, string YValor, string Color, string? Valor, string Fecha);
     private sealed record Guia(string Y, string YTexto, string Valor);
+    private sealed record Apilada(string X, string Ancho, string Y, string AltoResto, string YValidas, string AltoValidas,
+                                  bool Completa, string XBorde, string YBorde, string AnchoBorde, string AltoBorde,
+                                  string Centro, string YValor, string? Valor, string Fecha);
 
     private static string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
 
@@ -144,10 +228,60 @@ else
     {
         p = await Repo.BuscarAsync(Codigo.ToUpperInvariant());
         if (p is null) return;
-        marcha = (await SesionesRepo.ListarAsync(p.Codigo)).Where(s => s.Ejercicio == "caminata_6m").ToList();
+        if (Pestana == "gimnasio")
+        {
+            await CargarGimnasioAsync();
+            return;
+        }
+        if (Pestana != "marcha") return;
+        marcha = await SesionesRepo.ListarAsync(p.Codigo, Sesiones.Marcha);
         if (marcha.Count == 0) return;
         Graficar();
         mediciones = await MedicionesRepo.DeSesionesAsync(marcha.Select(s => s.Id).ToList());
+    }
+
+    // Ejercicios hechos (orden fijo); por defecto el de la sesión más reciente
+    private async Task CargarGimnasioAsync()
+    {
+        gimnasio = (await SesionesRepo.ListarAsync(p!.Codigo, Sesiones.Gimnasio)).Where(s => s.Gym is not null).ToList();
+        if (gimnasio.Count == 0) return;
+        tipos = Sesiones.EjerciciosGimnasio.Where(e => gimnasio.Any(s => s.Ejercicio == e)).ToList();
+        tipo = Tipo is not null && tipos.Contains(Tipo) ? Tipo : gimnasio[0].Ejercicio;
+        delTipo = gimnasio.Where(s => s.Ejercicio == tipo).ToList();
+        GraficarGimnasio();
+        series = await SesionesRepo.SeriesAsync(delTipo.Select(s => s.Id).ToList());
+    }
+
+    // Últimas 12 sesiones del ejercicio: válidas (oscuro) + no válidas (claro), en % de la meta
+    private void GraficarGimnasio()
+    {
+        var datos = delTipo.Take(12).Reverse().ToList();
+        double maximo = Math.Max(100, Math.Ceiling(datos.Max(s => (double)s.Gym!.Porcentaje) / 10) * 10);
+        const double izq = 34, ancho = 300, arriba = 20, alto = 140;
+        double hueco = ancho / datos.Count;
+        double barra = Math.Min(28, hueco * 0.6);
+        bool etiquetas = datos.Count <= 8;
+
+        foreach (var v in new[] { 0, maximo / 2, maximo })
+        {
+            double y = arriba + alto - v / maximo * alto;
+            guias.Add(new Guia(F(y), F(y + 3), Textos.Num((decimal)v, "0") + " %"));
+        }
+
+        foreach (var (s, i) in datos.Select((s, i) => (s, i)))
+        {
+            var g = s.Gym!;
+            double escala = g.Meta > 0 ? 100.0 / g.Meta / maximo * alto : 0;
+            double hv = g.Validas * escala, hn = (g.Reps - g.Validas) * escala;
+            double x = izq + i * hueco + (hueco - barra) / 2;
+            double y = arriba + alto - hv - hn;
+            apiladas.Add(new Apilada(F(x), F(barra), F(y), F(hn), F(arriba + alto - hv), F(hv),
+                s.Completa, F(x - 2), F(y - 2), F(barra + 4), F(hv + hn + 2),
+                F(x + barra / 2), F(y - 6), etiquetas ? $"{g.Porcentaje} %" : null,
+                Hora.Ecuador(s.Inicio).ToString("dd/MM")));
+        }
+
+        descripcion = $"Repeticiones por sesión de {Textos.Ejercicio(tipo)}: de {datos.Min(s => s.Gym!.Porcentaje)} % a {datos.Max(s => s.Gym!.Porcentaje)} % de la meta en {datos.Count} sesiones.";
     }
 
     // Últimas 12 sesiones, de la más antigua a la más reciente

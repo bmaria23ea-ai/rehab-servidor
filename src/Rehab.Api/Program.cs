@@ -92,6 +92,7 @@ app.MapVinculacion();
 app.MapToken();
 app.MapAsignacion();
 app.MapSesiones();
+app.MapGimnasio();
 
 // Salud: confirma que la API llega a la base. No revela detalles del error.
 app.MapGet("/salud", async (MySqlDataSource ds, ILogger<Program> log, CancellationToken ct) =>

@@ -1,0 +1,30 @@
+@* Series de una sesión del gimnasio: hechas / meta, válidas y si se logró *@
+<div class="med-tabla gym-series">
+    <table>
+        <thead>
+            <tr>
+                <th scope="col"><span class="oculto">Serie</span></th>
+                <th scope="col">Repeticiones</th>
+                <th scope="col">Válidas</th>
+                <th scope="col">Lograda</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < Series.Count; i++)
+            {
+                var x = Series[i];
+                <tr>
+                    <th scope="row">Serie @(i + 1)</th>
+                    <td>@x.Reps / @Gym.MetaSerie</td>
+                    <td>@x.Validas</td>
+                    <td>@(Gym.Lograda(x.Reps) ? "Sí" : "No")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Gimnasio Gym { get; set; } = default!;
+    [Parameter, EditorRequired] public List<Serie> Series { get; set; } = [];
+}
