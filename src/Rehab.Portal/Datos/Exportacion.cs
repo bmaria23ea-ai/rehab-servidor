@@ -79,13 +79,90 @@ public sealed class Exportacion(MySqlDataSource ds)
         var marcha = new Hoja("Marcha", titulos.ToArray(), anchos.ToArray(), filas);
         await r.DisposeAsync();
         var gimnasio = await GimnasioAsync(cn, codigo, sesion);
+        var respiracion = await RespiracionAsync(cn, codigo, sesion);
 
         // Solo las hojas con datos; sin datos, la de la marcha con sus títulos
         var hojas = new List<Hoja>();
         if (marcha.Filas.Count > 0) hojas.Add(marcha);
         if (gimnasio.Filas.Count > 0) hojas.Add(gimnasio);
+        if (respiracion.Filas.Count > 0) hojas.Add(respiracion);
         if (hojas.Count == 0) hojas.Add(marcha);
         return Excel.Crear(hojas);
+    }
+
+    // Una fila por sesión de respiración; repeticiones de cada serie en columnas (vacías si no se llegó)
+    private static async Task<Hoja> RespiracionAsync(MySqlConnection cn, string? codigo, ulong? sesion)
+    {
+        const string desde = "FROM sesiones s LEFT JOIN pacientes p ON p.id = s.paciente_id " +
+                             "JOIN respiracion_sesiones rs ON rs.sesion_id = s.id ";
+        var series = new Dictionary<ulong, List<int>>();
+        await using (var cmd = new MySqlCommand(
+            "SELECT y.sesion_id, y.reps " + desde + "JOIN respiracion_series y ON y.sesion_id = s.id " +
+            DondeGimnasio + "ORDER BY y.sesion_id, y.serie", cn))
+        {
+            Filtro(cmd, codigo, sesion);
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                ulong id = Convert.ToUInt64(r.GetValue(0));
+                if (!series.TryGetValue(id, out var lista)) series[id] = lista = [];
+                lista.Add(Convert.ToInt32(r.GetValue(1)));
+            }
+        }
+
+        var datos = new List<object[]>();
+        await using (var cmd = new MySqlCommand(
+            "SELECT s.id, p.codigo, s.sesion_uuid, s.inicio_utc, v.nombre, s.ejercicio, s.escena, s.motivo_fin, " +
+            "s.duracion_real_s, rs.series_config, rs.reps_por_serie, rs.retiros_visor, o.texto " + desde +
+            "JOIN visores v ON v.id = s.visor_id " +
+            "LEFT JOIN sesion_observaciones o ON o.sesion_id = s.id " + DondeGimnasio +
+            "ORDER BY p.codigo IS NULL, p.codigo, s.inicio_utc", cn))
+        {
+            Filtro(cmd, codigo, sesion);
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                var fila = new object[13];
+                r.GetValues(fila);
+                datos.Add(fila);
+            }
+        }
+
+        int columnas = datos.Select(f => Convert.ToInt32(f[9])).DefaultIfEmpty(2).Max();
+        var filas = new List<Celda[]>();
+        foreach (var f in datos)
+        {
+            var lista = series.GetValueOrDefault(Convert.ToUInt64(f[0]), []);
+            int repsSerie = Convert.ToInt32(f[10]);
+            DateTime local = Hora.Ecuador(Convert.ToDateTime(f[3]));
+            var fila = new List<Celda>
+            {
+                new(f[1] is DBNull ? "Sin paciente" : (string)f[1]),
+                new(Sesiones.CodigoCorto(f[2])),
+                new(local.Date, 2),
+                new(local.TimeOfDay, 3),
+                new((string)f[4]),
+                new(Textos.Ejercicio((string)f[5])),
+                new(Textos.Escena((string)f[6])),
+                new(Textos.Motivo((string)f[7])),
+                new(TimeSpan.FromSeconds((double)Math.Round(Convert.ToDecimal(f[8]), MidpointRounding.AwayFromZero)), 7),
+                new(lista.Sum()),
+                new(Convert.ToInt32(f[9]) * repsSerie),
+                new(lista.Count(x => x >= repsSerie)),
+                new(Convert.ToInt32(f[11])),
+            };
+            for (int i = 0; i < columnas; i++) fila.Add(new(i < lista.Count ? lista[i] : null));
+            fila.Add(new(f[12] is DBNull ? null : (string)f[12], 6));
+            filas.Add(fila.ToArray());
+        }
+
+        var titulos = new List<string> { "Código", "Sesión", "Fecha", "Hora", "Visor", "Ejercicio", "Escena", "Cómo terminó",
+                                         "Duración (min:s)", "Repeticiones", "Meta", "Series completas", "Visor retirado" };
+        var anchos = new List<double> { 13, 11, 12, 8, 14, 22, 9, 18, 14, 13, 8, 12, 12 };
+        for (int i = 1; i <= columnas; i++) { titulos.Add($"Serie {i} reps"); anchos.Add(12); }
+        titulos.Add("Observaciones");
+        anchos.Add(50);
+        return new Hoja("Respiración", titulos.ToArray(), anchos.ToArray(), filas);
     }
 
     private const string DesdeGimnasio =

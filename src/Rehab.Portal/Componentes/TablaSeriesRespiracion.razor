@@ -1,0 +1,27 @@
+@* Series de una sesión de respiración: hechas / previstas y si se completó *@
+<div class="med-tabla gym-series">
+    <table>
+        <thead>
+            <tr>
+                <th scope="col"><span class="oculto">Serie</span></th>
+                <th scope="col">Repeticiones</th>
+                <th scope="col">Completa</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < Series.Count; i++)
+            {
+                <tr>
+                    <th scope="row">Serie @(i + 1)</th>
+                    <td>@Series[i] / @Resp.RepsSerie</td>
+                    <td>@(Resp.Completa(Series[i]) ? "Sí" : "No")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Respiracion Resp { get; set; } = default!;
+    [Parameter, EditorRequired] public List<int> Series { get; set; } = [];
+}
