@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Rehab.Portal.Datos;
 
-// Estilos: 0 normal, 1 título, 2 fecha, 3 hora, 4 dos decimales, 5 un decimal, 6 texto largo
+// Estilos: 0 normal, 1 título, 2 fecha, 3 hora, 4 dos decimales, 5 un decimal, 6 texto largo, 7 duración min:s
 public sealed record Celda(object? Valor, int Estilo = 0);
 
 public sealed record Hoja(string Nombre, string[] Titulos, double[] Anchos, List<Celda[]> Filas);
@@ -55,9 +55,10 @@ public static class Excel
 
     private const string Estilos =
         "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">" +
-        "<numFmts count=\"4\">" +
+        "<numFmts count=\"5\">" +
         "<numFmt numFmtId=\"164\" formatCode=\"dd/mm/yyyy\"/><numFmt numFmtId=\"165\" formatCode=\"hh:mm\"/>" +
-        "<numFmt numFmtId=\"166\" formatCode=\"0.00\"/><numFmt numFmtId=\"167\" formatCode=\"0.0\"/></numFmts>" +
+        "<numFmt numFmtId=\"166\" formatCode=\"0.00\"/><numFmt numFmtId=\"167\" formatCode=\"0.0\"/>" +
+        "<numFmt numFmtId=\"168\" formatCode=\"[m]:ss\"/></numFmts>" +
         "<fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font>" +
         "<font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts>" +
         "<fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>" +
@@ -65,7 +66,7 @@ public static class Excel
         "<borders count=\"2\"><border><left/><right/><top/><bottom/><diagonal/></border>" +
         "<border><left/><right/><top/><bottom style=\"thin\"><color rgb=\"FF9AA8B6\"/></bottom><diagonal/></border></borders>" +
         "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>" +
-        "<cellXfs count=\"7\">" +
+        "<cellXfs count=\"8\">" +
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>" +
         "<xf numFmtId=\"0\" fontId=\"1\" fillId=\"2\" borderId=\"1\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment vertical=\"center\" wrapText=\"1\"/></xf>" +
         "<xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>" +
@@ -73,6 +74,7 @@ public static class Excel
         "<xf numFmtId=\"166\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>" +
         "<xf numFmtId=\"167\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>" +
         "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyAlignment=\"1\"><alignment vertical=\"top\" wrapText=\"1\"/></xf>" +
+        "<xf numFmtId=\"168\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"/>" +
         "</cellXfs>" +
         "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>" +
         "</styleSheet>";

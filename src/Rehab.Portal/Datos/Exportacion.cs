@@ -149,7 +149,7 @@ public sealed class Exportacion(MySqlDataSource ds)
                 new(Textos.Ejercicio((string)f[5])),
                 new(Textos.Escena((string)f[6])),
                 new(Textos.Motivo((string)f[7])),
-                new(Convert.ToDecimal(f[8]) / 60m, 5),
+                new(TimeSpan.FromSeconds((double)Math.Round(Convert.ToDecimal(f[8]), MidpointRounding.AwayFromZero)), 7),
                 new(reps),
                 new(meta),
                 new(meta > 0 ? (int)Math.Round(100m * reps / meta, MidpointRounding.AwayFromZero) : 0),
@@ -166,7 +166,7 @@ public sealed class Exportacion(MySqlDataSource ds)
         }
 
         var titulos = new List<string> { "Código", "Sesión", "Fecha", "Hora", "Visor", "Ejercicio", "Escena", "Cómo terminó",
-                                         "Duración (min)", "Repeticiones", "Meta", "% de la meta", "Repeticiones válidas", "Visor retirado" };
+                                         "Duración (min:s)", "Repeticiones", "Meta", "% de la meta", "Repeticiones válidas", "Visor retirado" };
         var anchos = new List<double> { 13, 11, 12, 8, 14, 20, 9, 18, 12, 13, 8, 12, 13, 12 };
         for (int i = 1; i <= columnas; i++)
         {
