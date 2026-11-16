@@ -55,7 +55,7 @@ else
             <div class="resumen">
                 <div><span>Repeticiones</span><strong>@ug.Reps / @ug.Meta</strong></div>
                 <div><span>Repeticiones válidas</span><strong>@ug.Validas</strong></div>
-                <div><span>Duración</span><strong>@Textos.Minutos(u.DuracionS)</strong></div>
+                <div><span>Duración</span><strong>@Textos.MinSeg(u.DuracionS)</strong></div>
                 <div><span>Visor retirado</span><strong>@ug.Retiros</strong></div>
             </div>
 
@@ -96,7 +96,7 @@ else
                         <a class="sesion" href="/sesiones/@s.Id">
                             <span>
                                 <strong>@Hora.FechaHora(s.Inicio)</strong>
-                                <small>@(s.Completa ? "" : $"Serie {g.SeriesHechas} de {g.Series} · ")@g.Reps / @g.Meta rep. (@g.Porcentaje %) · Válidas: @g.Validas · @Textos.Minutos(s.DuracionS) · Escena @g.Escena · Visor retirado: @g.Retiros</small>
+                                <small>@(s.Completa ? "" : $"Serie {g.SeriesHechas} de {g.Series} · ")@g.Reps / @g.Meta rep. (@g.Porcentaje %) · Válidas: @g.Validas · @Textos.MinSeg(s.DuracionS) · Escena @g.Escena · Visor retirado: @g.Retiros</small>
                             </span>
                             <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
                         </a>

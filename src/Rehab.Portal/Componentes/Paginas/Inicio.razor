@@ -38,7 +38,7 @@
                 {
                     <p><span class="estado pendiente">Interrumpida · @Textos.Motivo(s.Motivo)</span></p>
                 }
-                <p class="ayuda">@Textos.Ejercicio(s.Ejercicio) · @Textos.Logro(s) · @Textos.Minutos(s.DuracionS) · @s.Visor · Sesión @s.Codigo</p>
+                <p class="ayuda">@Textos.Ejercicio(s.Ejercicio) · @Textos.Logro(s) · @Textos.Duracion(s) · @s.Visor · Sesión @s.Codigo</p>
                 @if (s.Paciente is null)
                 {
                     <form method="post" action="/sesiones/@s.Id/asignar" class="fila">
@@ -76,7 +76,7 @@
                     <a class="sesion" href="/sesiones/@s.Id">
                         <span>
                             <strong>@(s.Paciente ?? "Sin paciente") · @Textos.Ejercicio(s.Ejercicio)</strong>
-                            <small>@Hora.Cercana(s.Inicio) · @Textos.Logro(s) · @Textos.Minutos(s.DuracionS)</small>
+                            <small>@Hora.Cercana(s.Inicio) · @Textos.Logro(s) · @Textos.Duracion(s)</small>
                         </span>
                         <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
                     </a>

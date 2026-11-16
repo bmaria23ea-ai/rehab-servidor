@@ -270,4 +270,15 @@ public static class Textos
         n is { } x ? x.ToString(formato, CultureInfo.InvariantCulture).Replace('.', ',') : "-";
 
     public static string Minutos(decimal segundos) => Num(segundos / 60m) + " min";
+
+    // Gimnasio: 113.6 -> "1 min 54 s"; 45 -> "45 s"; 120 -> "2 min"
+    public static string MinSeg(decimal segundos)
+    {
+        int total = (int)Math.Round(segundos, MidpointRounding.AwayFromZero);
+        int min = total / 60, seg = total % 60;
+        return min == 0 ? $"{seg} s" : seg == 0 ? $"{min} min" : $"{min} min {seg} s";
+    }
+
+    // Duración en las listas generales: minutos y segundos solo en el gimnasio
+    public static string Duracion(SesionFila s) => s.Gym is null ? Minutos(s.DuracionS) : MinSeg(s.DuracionS);
 }

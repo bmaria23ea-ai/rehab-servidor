@@ -38,7 +38,7 @@ else
             <a class="sesion" href="/sesiones/@s.Id">
                 <span>
                     <strong>@(s.Paciente ?? "Sin paciente") · @Textos.Ejercicio(s.Ejercicio) @if (s.EsPrueba) { <span class="etiqueta">prueba</span> }</strong>
-                    <small>@Hora.Cercana(s.Inicio) · @Textos.Logro(s) · @Textos.Minutos(s.DuracionS) · Sesión @s.Codigo</small>
+                    <small>@Hora.Cercana(s.Inicio) · @Textos.Logro(s) · @Textos.Duracion(s) · Sesión @s.Codigo</small>
                 </span>
                 <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
             </a>
