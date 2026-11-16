@@ -201,6 +201,9 @@ public static class RespiracionEndpoints
         }
         if (r.RepsPorSerie is int maximo && lista.Any(x => x < 0 || x > maximo))
             Error("respiracion.resultadoSeries", $"Cada serie entre 0 y {maximo} repeticiones.");
+        // Rutina guiada: si terminó, se hicieron todas las repeticiones
+        else if (s.Estado == "completa" && r.RepsPorSerie is int todas && lista.Any(x => x != todas))
+            Error("respiracion.resultadoSeries", $"Una sesión completa debe traer {todas} repeticiones en cada serie.");
 
         return e;
     }
