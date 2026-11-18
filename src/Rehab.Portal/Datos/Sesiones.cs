@@ -6,7 +6,8 @@ namespace Rehab.Portal.Datos;
 public sealed record SesionFila(ulong Id, string? Paciente, string Ejercicio, bool EsPrueba, DateTime Inicio,
                                 decimal DuracionS, string Estado, string Motivo, decimal? DistanciaM,
                                 int? Paradas, decimal? DetenidoS, string Visor, string Codigo, Gimnasio? Gym = null,
-                                int? RetirosMarcha = null, Respiracion? Resp = null)
+                                int? RetirosMarcha = null, Respiracion? Resp = null,
+                                VidaCotidiana? Vida = null)
 {
     public bool Completa => Estado == "completa";
 }
@@ -30,6 +31,14 @@ public sealed record Respiracion(string Escena, int Series, int RepsSerie, int R
     public bool Completa(int reps) => reps >= RepsSerie;
 }
 
+// Resumen de una sesión de vida cotidiana; Actividades = logros distintos del catálogo
+public sealed record VidaCotidiana(string Escena, decimal SegundosActivos, int Actividades, int Reps)
+{
+    public static int Total => Textos.Actividades.Length;
+}
+
+public sealed record Logro(string Codigo, int Cantidad, decimal PrimerSegundo);
+
 public sealed record ResumenHoy(int Sesiones, int Interrumpidas, int SinPaciente);
 
 public sealed record SesionDetalle(SesionFila Sesion, decimal? TiempoDetenidoS, int? Paradas, decimal? LargoPistaM,
@@ -41,6 +50,7 @@ public sealed class Sesiones(MySqlDataSource ds)
     public const string Marcha = "caminata_6m";
     public const string Gimnasio = "gimnasio";
     public const string Respiracion = "respiracion";
+    public const string Vida = "vida_cotidiana";
 
     public static readonly string[] EjerciciosRespiracion = ["apnea_sedestacion"];
 
@@ -63,14 +73,18 @@ public sealed class Sesiones(MySqlDataSource ds)
         "rs.series_config, rs.reps_por_serie, rs.retiros_visor, " +
         "(SELECT SUM(y.reps) FROM respiracion_series y WHERE y.sesion_id = s.id), " +
         "(SELECT COUNT(*) FROM respiracion_series y WHERE y.sesion_id = s.id), " +
-        "(SELECT COUNT(*) FROM respiracion_series y WHERE y.sesion_id = s.id AND y.reps >= rs.reps_por_serie) " +
+        "(SELECT COUNT(*) FROM respiracion_series y WHERE y.sesion_id = s.id AND y.reps >= rs.reps_por_serie), " +
+        "vc.segundos_activos, " +
+        "(SELECT COUNT(*) FROM vida_cotidiana_logros z WHERE z.sesion_id = s.id), " +
+        "(SELECT SUM(z.cantidad) FROM vida_cotidiana_logros z WHERE z.sesion_id = s.id) " +
         "FROM sesiones s LEFT JOIN pacientes p ON p.id = s.paciente_id " +
         "JOIN visores v ON v.id = s.visor_id " +
         "LEFT JOIN caminata_resultados c ON c.sesion_id = s.id " +
         "LEFT JOIN gimnasio_sesiones g ON g.sesion_id = s.id " +
-        "LEFT JOIN respiracion_sesiones rs ON rs.sesion_id = s.id ";
+        "LEFT JOIN respiracion_sesiones rs ON rs.sesion_id = s.id " +
+        "LEFT JOIN vida_cotidiana_sesiones vc ON vc.sesion_id = s.id ";
 
-    // ejercicio: null = todos, Marcha o Gimnasio
+    // ejercicio: null = todos, Marcha, Gimnasio, Respiracion o Vida
     public async Task<List<SesionFila>> ListarAsync(string? paciente, string? ejercicio = null)
     {
         var condiciones = new List<string>();
@@ -79,6 +93,7 @@ public sealed class Sesiones(MySqlDataSource ds)
         if (ejercicio == Marcha) condiciones.Add("s.ejercicio = 'caminata_6m' ");
         else if (ejercicio == Gimnasio) condiciones.Add(FiltroGimnasio);
         else if (ejercicio == Respiracion) condiciones.Add(FiltroRespiracion);
+        else if (ejercicio == Vida) condiciones.Add("s.ejercicio = 'vida_cotidiana' ");
         string filtro = condiciones.Count == 0 ? "" : "WHERE " + string.Join("AND ", condiciones);
 
         await using var cn = await ds.OpenConnectionAsync();
@@ -199,6 +214,32 @@ public sealed class Sesiones(MySqlDataSource ds)
         return d;
     }
 
+    // Logros de varias sesiones de vida cotidiana, en el orden en que se hicieron por primera vez
+    public async Task<Dictionary<ulong, List<Logro>>> LogrosAsync(IReadOnlyCollection<ulong> ids)
+    {
+        var d = new Dictionary<ulong, List<Logro>>();
+        if (ids.Count == 0) return d;
+        await using var cn = await ds.OpenConnectionAsync();
+        await using var cmd = new MySqlCommand { Connection = cn };
+        var nombres = new List<string>(ids.Count);
+        int i = 0;
+        foreach (var id in ids)
+        {
+            nombres.Add($"@i{i}");
+            cmd.Parameters.AddWithValue($"@i{i++}", id);
+        }
+        cmd.CommandText = "SELECT sesion_id, codigo, cantidad, primer_segundo FROM vida_cotidiana_logros " +
+                          $"WHERE sesion_id IN ({string.Join(", ", nombres)}) ORDER BY sesion_id, primer_segundo, codigo";
+        await using var r = await cmd.ExecuteReaderAsync();
+        while (await r.ReadAsync())
+        {
+            ulong id = Convert.ToUInt64(r.GetValue(0));
+            if (!d.TryGetValue(id, out var lista)) d[id] = lista = [];
+            lista.Add(new Logro(r.GetString(1), Convert.ToInt32(r.GetValue(2)), Convert.ToDecimal(r.GetValue(3))));
+        }
+        return d;
+    }
+
     // Última sesión recibida de cada visor
     public async Task<Dictionary<string, SesionFila>> UltimasPorVisorAsync()
     {
@@ -268,7 +309,9 @@ public sealed class Sesiones(MySqlDataSource ds)
         r.IsDBNull(25) ? null : new Respiracion(Textos.Escena(r.GetString(16)), Convert.ToInt32(r.GetValue(25)),
             Convert.ToInt32(r.GetValue(26)), Convert.ToInt32(r.GetValue(27)),
             r.IsDBNull(28) ? 0 : Convert.ToInt32(r.GetValue(28)), Convert.ToInt32(r.GetValue(29)),
-            Convert.ToInt32(r.GetValue(30))));
+            Convert.ToInt32(r.GetValue(30))),
+        r.IsDBNull(31) ? null : new VidaCotidiana(Textos.Escena(r.GetString(16)), Convert.ToDecimal(r.GetValue(31)),
+            Convert.ToInt32(r.GetValue(32)), r.IsDBNull(33) ? 0 : Convert.ToInt32(r.GetValue(33))));
 
     // Primeros 4 caracteres del UUID de la sesión; el visor muestra el mismo código
     public static string CodigoCorto(object uuid) =>
@@ -289,17 +332,36 @@ public static class Textos
         "sentadilla_libre" => "Sentadilla libre",
         "sentadilla_pesa" => "Sentadilla con barra",
         "apnea_sedestacion" => "Apnea en sedestación",
+        "vida_cotidiana" => "Vida cotidiana",
         _ => e,
     };
+
+    // Catálogo de vida cotidiana, en el orden del portal y del Excel
+    public static readonly (string Codigo, string Texto)[] Actividades =
+    [
+        ("libro_estante_medio", "Colocó un libro en el estante medio"),
+        ("libro_estante_alto", "Colocó un libro en el estante alto"),
+        ("libro_recogido_piso", "Recogió un libro del piso"),
+        ("pesa_levantada", "Levantó una pesa del piso"),
+        ("gato_acariciado", "Acarició al gato"),
+        ("puerta_deslizada", "Deslizó la puerta"),
+        ("ventana_deslizada", "Deslizó la ventana"),
+        ("pelota_lanzada", "Lanzó la pelota"),
+        ("bocado_comido", "Comió un bocado con el cubierto"),
+    ];
+
+    public static string Actividad(string codigo) =>
+        Array.Find(Actividades, a => a.Codigo == codigo).Texto ?? codigo;
 
     // "F-Hombros_gym" -> "F"
     public static string Escena(string escena) =>
         escena.Length > 1 && escena[1] == '-' && escena[0] is 'F' or 'M' ? escena[..1] : "-";
 
-    // Dato principal de la sesión en las listas: metros (marcha) o repeticiones (gimnasio)
+    // Dato principal de la sesión en las listas: metros, repeticiones o actividades
     public static string Logro(SesionFila s) =>
         s.Gym is { } g ? $"{g.Reps} / {g.Meta} rep." :
-        s.Resp is { } r ? $"{r.Reps} / {r.Meta} rep." : $"{Num(s.DistanciaM, "0.##")} m";
+        s.Resp is { } r ? $"{r.Reps} / {r.Meta} rep." :
+        s.Vida is { } v ? $"{v.Actividades} / {VidaCotidiana.Total} actividades" : $"{Num(s.DistanciaM, "0.##")} m";
 
     public static string Motivo(string m) => m switch
     {
@@ -330,9 +392,9 @@ public static class Textos
         return min == 0 ? $"{seg} s" : seg == 0 ? $"{min} min" : $"{min} min {seg} s";
     }
 
-    // Duración en las listas generales: minutos y segundos en gimnasio y respiración; la marcha en minutos
+    // Duración en las listas generales: minutos y segundos salvo la marcha, en minutos
     public static string Duracion(SesionFila s) =>
-        s.Gym is null && s.Resp is null ? Minutos(s.DuracionS) : MinSeg(s.DuracionS);
+        s.Gym is null && s.Resp is null && s.Vida is null ? Minutos(s.DuracionS) : MinSeg(s.DuracionS);
 
     // Etiquetas cortas del gráfico de duración: 113 -> "1:53"
     public static string MinSegCorto(decimal segundos)

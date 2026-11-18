@@ -33,7 +33,22 @@ else
     @if (Error == "asignar") { <p class="error">No se pudo asignar. Elija un paciente.</p> }
     @if (Error == "observacion") { <p class="error">No se pudo guardar. Escriba la observación (máximo @Observaciones.Maximo caracteres).</p> }
 
-    @if (s.Resp is { } rr)
+    @if (s.Vida is { } vc)
+    {
+        <div class="resumen">
+            <div><span>Duración</span><strong>@Textos.MinSeg(s.DuracionS)</strong></div>
+            <div><span>Tiempo activo aprox.</span><strong>@Textos.MinSeg(vc.SegundosActivos)</strong></div>
+            <div><span>Actividades realizadas</span><strong>@vc.Actividades / @VidaCotidiana.Total</strong></div>
+            <div><span>Repeticiones totales</span><strong>@vc.Reps</strong></div>
+        </div>
+
+        <section class="panel">
+            <h2>Actividades</h2>
+            @if (logros.Count == 0) { <p class="ayuda">No realizó actividades.</p> }
+            else { <TablaActividades Logros="logros" /> }
+        </section>
+    }
+    else if (s.Resp is { } rr)
     {
         <div class="resumen">
             <div><span>Duración</span><strong>@Textos.MinSeg(s.DuracionS)</strong></div>
@@ -140,7 +155,7 @@ else
         <p class="ayuda">Si la sesión quedó con el paciente equivocado, elija el correcto o déjela sin paciente.</p>
     </section>
 
-    @if (s.Ejercicio == Sesiones.Marcha || s.Gym is not null || s.Resp is not null)
+    @if (s.Ejercicio == Sesiones.Marcha || s.Gym is not null || s.Resp is not null || s.Vida is not null)
     {
         <h2>Datos de la sesión</h2>
         <div class="fila">
@@ -175,6 +190,7 @@ else
     private Dictionary<string, Medicion>? med;
     private List<Serie> series = [];
     private List<int> seriesResp = [];
+    private List<Logro> logros = [];
     private List<string> pacientes = [];
 
     protected override async Task OnInitializedAsync()
@@ -186,6 +202,7 @@ else
         med = (await MedicionesRepo.DeSesionesAsync([(ulong)Id])).GetValueOrDefault((ulong)Id);
         if (d.Sesion.Gym is not null) series = (await Repo.SeriesAsync([(ulong)Id])).GetValueOrDefault((ulong)Id, []);
         if (d.Sesion.Resp is not null) seriesResp = (await Repo.SeriesRespiracionAsync([(ulong)Id])).GetValueOrDefault((ulong)Id, []);
+        if (d.Sesion.Vida is not null) logros = (await Repo.LogrosAsync([(ulong)Id])).GetValueOrDefault((ulong)Id, []);
         pacientes = await VisoresRepo.CodigosPacientesAsync();
     }
 }

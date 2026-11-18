@@ -80,12 +80,14 @@ public sealed class Exportacion(MySqlDataSource ds)
         await r.DisposeAsync();
         var gimnasio = await GimnasioAsync(cn, codigo, sesion);
         var respiracion = await RespiracionAsync(cn, codigo, sesion);
+        var vida = await VidaAsync(cn, codigo, sesion);
 
         // Solo las hojas con datos; sin datos, la de la marcha con sus títulos
         var hojas = new List<Hoja>();
         if (marcha.Filas.Count > 0) hojas.Add(marcha);
         if (gimnasio.Filas.Count > 0) hojas.Add(gimnasio);
         if (respiracion.Filas.Count > 0) hojas.Add(respiracion);
+        if (vida.Filas.Count > 0) hojas.Add(vida);
         if (hojas.Count == 0) hojas.Add(marcha);
         return Excel.Crear(hojas);
     }
@@ -164,6 +166,71 @@ public sealed class Exportacion(MySqlDataSource ds)
         anchos.Add(50);
         return new Hoja("Respiración", titulos.ToArray(), anchos.ToArray(), filas);
     }
+
+    // Una fila por sesión de vida cotidiana; veces de cada actividad en columnas (0 si no la hizo)
+    private static async Task<Hoja> VidaAsync(MySqlConnection cn, string? codigo, ulong? sesion)
+    {
+        const string desde = "FROM sesiones s LEFT JOIN pacientes p ON p.id = s.paciente_id " +
+                             "JOIN vida_cotidiana_sesiones vc ON vc.sesion_id = s.id ";
+        var logros = new Dictionary<ulong, Dictionary<string, int>>();
+        await using (var cmd = new MySqlCommand(
+            "SELECT z.sesion_id, z.codigo, z.cantidad " + desde + "JOIN vida_cotidiana_logros z ON z.sesion_id = s.id " +
+            DondeGimnasio, cn))
+        {
+            Filtro(cmd, codigo, sesion);
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                ulong id = Convert.ToUInt64(r.GetValue(0));
+                if (!logros.TryGetValue(id, out var d)) logros[id] = d = [];
+                d[r.GetString(1)] = Convert.ToInt32(r.GetValue(2));
+            }
+        }
+
+        var filas = new List<Celda[]>();
+        await using (var cmd = new MySqlCommand(
+            "SELECT s.id, p.codigo, s.sesion_uuid, s.inicio_utc, v.nombre, s.motivo_fin, s.duracion_real_s, " +
+            "vc.segundos_activos, o.texto " + desde +
+            "JOIN visores v ON v.id = s.visor_id " +
+            "LEFT JOIN sesion_observaciones o ON o.sesion_id = s.id " + DondeGimnasio +
+            "ORDER BY p.codigo IS NULL, p.codigo, s.inicio_utc", cn))
+        {
+            Filtro(cmd, codigo, sesion);
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                var hechas = logros.GetValueOrDefault(Convert.ToUInt64(r.GetValue(0)), []);
+                DateTime local = Hora.Ecuador(r.GetDateTime(3));
+                var fila = new List<Celda>
+                {
+                    new(r.IsDBNull(1) ? "Sin paciente" : r.GetString(1)),
+                    new(Sesiones.CodigoCorto(r.GetValue(2))),
+                    new(local.Date, 2),
+                    new(local.TimeOfDay, 3),
+                    new(r.GetString(4)),
+                    new(Textos.Motivo(r.GetString(5))),
+                    new(MinSeg(Convert.ToDecimal(r.GetValue(6))), 7),
+                    new(MinSeg(Convert.ToDecimal(r.GetValue(7))), 7),
+                    new(hechas.Count),
+                };
+                foreach (var a in Textos.Actividades) fila.Add(new(hechas.GetValueOrDefault(a.Codigo)));
+                fila.Add(new(r.IsDBNull(8) ? null : r.GetString(8), 6));
+                filas.Add(fila.ToArray());
+            }
+        }
+
+        var titulos = new List<string> { "Código", "Sesión", "Fecha", "Hora", "Visor", "Cómo terminó",
+                                         "Duración (min:s)", "Tiempo activo aprox. (min:s)", "Actividades realizadas" };
+        var anchos = new List<double> { 13, 11, 12, 8, 14, 18, 14, 16, 13 };
+        foreach (var a in Textos.Actividades) { titulos.Add(a.Texto); anchos.Add(16); }
+        titulos.Add("Observaciones");
+        anchos.Add(50);
+        return new Hoja("Vida cotidiana", titulos.ToArray(), anchos.ToArray(), filas);
+    }
+
+    // Duración redondeada al segundo, con formato [m]:ss
+    private static TimeSpan MinSeg(decimal segundos) =>
+        TimeSpan.FromSeconds((double)Math.Round(segundos, MidpointRounding.AwayFromZero));
 
     private const string DesdeGimnasio =
         "FROM sesiones s LEFT JOIN pacientes p ON p.id = s.paciente_id " +

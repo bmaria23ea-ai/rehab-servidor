@@ -152,9 +152,10 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 
 /* Pestañas */
-.pestanas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; background: #E6EAEF; border-radius: 10px; padding: 4px; margin: 1rem 0; }
+.pestanas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; background: #E6EAEF; border-radius: 10px; padding: 4px; margin: 1rem 0; }
 .pestanas a { min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--texto-2); text-decoration: none; font-size: .95rem; }
 .pestanas a[aria-current="page"] { background: #fff; color: var(--texto); font-weight: 600; }
+@media (min-width: 700px) { .pestanas { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* Gráficos */
 .grafico { width: 100%; max-width: 640px; height: auto; display: block; margin: 0 auto; }
@@ -213,5 +214,10 @@ progress { width: 100%; height: 12px; accent-color: var(--primario); }
 .sub-pestanas a[aria-current="page"] { background: var(--primario); border-color: var(--primario); color: #fff; font-weight: 600; }
 .gym-series table { min-width: 0; }
 .gym-series td { text-align: center; }
+.vc-tabla table { min-width: 0; }
+.vc-tabla .vc-c-act { width: 58%; }
+.vc-tabla tbody th { font-weight: 500; line-height: 1.3; }
+.vc-tabla td { text-align: center; }
+.vc-tabla thead th:first-child { text-align: left; padding-left: 0; }
 .muestra.novalidas { background: #9DB7D5; }
 .muestra.incompleta { background: none; border: 1.5px dashed #5B6672; }

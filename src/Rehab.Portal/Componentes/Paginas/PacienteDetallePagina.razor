@@ -29,9 +29,78 @@ else
         <a href="/pacientes/@p.Codigo" aria-current="@(Pestana == "marcha" ? "page" : null)">Marcha</a>
         <a href="/pacientes/@p.Codigo?ejercicio=respiracion" aria-current="@(Pestana == "respiracion" ? "page" : null)">Respiración</a>
         <a href="/pacientes/@p.Codigo?ejercicio=gimnasio" aria-current="@(Pestana == "gimnasio" ? "page" : null)">Gimnasio</a>
+        <a href="/pacientes/@p.Codigo?ejercicio=vida" aria-current="@(Pestana == "vida" ? "page" : null)">Vida cotidiana</a>
     </nav>
 
-    @if (Pestana == "respiracion")
+    @if (Pestana == "vida")
+    {
+        if (vida.Count == 0)
+        {
+            <p class="ayuda">Todavía no hay sesiones de vida cotidiana.</p>
+        }
+        else
+        {
+            var u = vida[0];
+            var uv = u.Vida!;
+            <div class="resumen">
+                <div><span>Duración</span><strong>@Textos.MinSeg(u.DuracionS)</strong></div>
+                <div><span>Tiempo activo aprox.</span><strong>@Textos.MinSeg(uv.SegundosActivos)</strong></div>
+                <div><span>Actividades realizadas</span><strong>@uv.Actividades / @VidaCotidiana.Total</strong></div>
+                <div><span>Repeticiones totales</span><strong>@uv.Reps</strong></div>
+            </div>
+
+            <section class="panel">
+                <h2>Actividades realizadas por sesión (de @VidaCotidiana.Total)</h2>
+                <svg class="grafico" viewBox="0 0 340 190" role="img" aria-label="@descripcion">
+                    @foreach (var g in guias)
+                    {
+                        <g>
+                            <line x1="34" x2="334" y1="@g.Y" y2="@g.Y" stroke="#E6EAEF"></line>
+                            <text x="28" y="@g.YTexto" text-anchor="end" font-size="10" fill="#5B6672">@g.Valor</text>
+                        </g>
+                    }
+                    @foreach (var b in barras)
+                    {
+                        <g>
+                            <rect x="@b.X" y="@b.Y" width="@b.Ancho" height="@b.Alto" rx="3" fill="@b.Color"></rect>
+                            <text x="@b.Centro" y="@b.YValor" text-anchor="middle" font-size="9" fill="#3A4552">@b.Valor</text>
+                            <text x="@b.Centro" y="178" text-anchor="middle" font-size="9" fill="#5B6672">@b.Fecha</text>
+                        </g>
+                    }
+                </svg>
+                <div class="leyenda">
+                    <span><i class="muestra completa"></i>Completa</span>
+                    <span><i class="muestra interrumpida"></i>Incompleta</span>
+                </div>
+            </section>
+
+            <h2>Sesiones de vida cotidiana</h2>
+            <div class="lista">
+                @foreach (var s in vida)
+                {
+                    var v = s.Vida!;
+                    var lista = logros.GetValueOrDefault(s.Id, []);
+                    <div class="sesion-bloque" id="s@(s.Id)">
+                        <a class="sesion" href="/sesiones/@s.Id">
+                            <span>
+                                <strong>@Hora.FechaHora(s.Inicio)</strong>
+                                <small>@Textos.MinSeg(s.DuracionS) · Tiempo activo aprox.: @Textos.MinSeg(v.SegundosActivos) · Actividades: @v.Actividades de @VidaCotidiana.Total</small>
+                            </span>
+                            <span class="estado @(s.Completa ? "activo" : "pendiente")">@Textos.Motivo(s.Motivo)</span>
+                        </a>
+                        @if (lista.Count > 0)
+                        {
+                            <details class="med-desplegable">
+                                <summary>Ver actividades</summary>
+                                <TablaActividades Logros="lista" />
+                            </details>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+    else if (Pestana == "respiracion")
     {
         if (respiracion.Count == 0)
         {
@@ -269,11 +338,13 @@ else
     private string? Mensaje => Error == "mediciones" ? "No se guardó. Revise los valores." :
         Ok == "mediciones" ? "Mediciones guardadas." : Ok == "mediciones_borradas" ? "Mediciones borradas." : null;
 
-    private string Pestana => Ejercicio is "respiracion" or "gimnasio" ? Ejercicio! : "marcha";
+    private string Pestana => Ejercicio is "respiracion" or "gimnasio" or "vida" ? Ejercicio! : "marcha";
     private PacienteFila? p;
     private List<SesionFila> marcha = [];
     private Dictionary<ulong, Dictionary<string, Medicion>> mediciones = [];
     private List<SesionFila> gimnasio = [];
+    private List<SesionFila> vida = [];
+    private Dictionary<ulong, List<Logro>> logros = [];
     private List<SesionFila> respiracion = [];
     private List<SesionFila> respTipo = [];
     private Dictionary<ulong, List<int>> seriesResp = [];
@@ -306,6 +377,14 @@ else
         if (Pestana == "respiracion")
         {
             await CargarRespiracionAsync();
+            return;
+        }
+        if (Pestana == "vida")
+        {
+            vida = (await SesionesRepo.ListarAsync(p.Codigo, Sesiones.Vida)).Where(s => s.Vida is not null).ToList();
+            if (vida.Count == 0) return;
+            GraficarVida();
+            logros = await SesionesRepo.LogrosAsync(vida.Select(s => s.Id).ToList());
             return;
         }
         marcha = await SesionesRepo.ListarAsync(p.Codigo, Sesiones.Marcha);
@@ -354,6 +433,38 @@ else
         }
 
         descripcion = $"Duración por sesión de {Textos.Ejercicio(tipo)}: de {Textos.MinSeg(datos.Min(s => s.DuracionS))} a {Textos.MinSeg(datos.Max(s => s.DuracionS))} en {datos.Count} sesiones.";
+    }
+
+    // Últimas 12 sesiones: actividades distintas realizadas, de 0 a 9
+    private void GraficarVida()
+    {
+        var datos = vida.Take(12).Reverse().ToList();
+        double maximo = VidaCotidiana.Total;
+        const double izq = 34, ancho = 300, arriba = 20, alto = 140;
+        double hueco = ancho / datos.Count;
+        double barra = Math.Min(28, hueco * 0.6);
+        bool etiquetas = datos.Count <= 8;
+
+        foreach (var v in new[] { 0, maximo / 3, maximo * 2 / 3, maximo })
+        {
+            double y = arriba + alto - v / maximo * alto;
+            guias.Add(new Guia(F(y), F(y + 3), v.ToString("0", CultureInfo.InvariantCulture)));
+        }
+
+        for (int i = 0; i < datos.Count; i++)
+        {
+            var s = datos[i];
+            int n = s.Vida!.Actividades;
+            double h = n / maximo * alto;
+            double x = izq + i * hueco + (hueco - barra) / 2;
+            double y = arriba + alto - h;
+            barras.Add(new Barra(F(x), F(y), F(barra), F(h), F(x + barra / 2), F(y - 4),
+                s.Completa ? "#1D4E89" : "#A9BCD0",
+                etiquetas ? n.ToString(CultureInfo.InvariantCulture) : null,
+                Hora.Ecuador(s.Inicio).ToString("dd/MM")));
+        }
+
+        descripcion = $"Actividades realizadas por sesión: de {datos.Min(s => s.Vida!.Actividades)} a {datos.Max(s => s.Vida!.Actividades)} de {VidaCotidiana.Total} en {datos.Count} sesiones.";
     }
 
     // Ejercicios hechos (orden fijo); por defecto el de la sesión más reciente

@@ -1,0 +1,27 @@
+@* Actividades de una sesión de vida cotidiana, en el orden en que se hicieron *@
+<div class="med-tabla vc-tabla">
+    <table>
+        <colgroup><col class="vc-c-act" /><col /><col /></colgroup>
+        <thead>
+            <tr>
+                <th scope="col">Actividad realizada</th>
+                <th scope="col">Veces</th>
+                <th scope="col">Primera vez<small>min:s</small></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var l in Logros)
+            {
+                <tr>
+                    <th scope="row">@Textos.Actividad(l.Codigo)</th>
+                    <td>@l.Cantidad</td>
+                    <td>@Textos.MinSegCorto(l.PrimerSegundo)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<Logro> Logros { get; set; } = [];
+}
