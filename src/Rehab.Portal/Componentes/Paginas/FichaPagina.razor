@@ -55,23 +55,20 @@ else
             <section class="panel fr-dim">
                 <h2>@Fichas.Dimensiones[d]</h2>
                 <table>
-                    <colgroup><col class="fr-c1" /><col /><col /><col /><col /><col /></colgroup>
                     <thead>
                         <tr>
-                            <th scope="col">Indicador</th>
                             @for (int k = 1; k <= 5; k++) { <th scope="col">@k</th> }
                         </tr>
                     </thead>
                     <tbody>
-                        @for (int l = 0; l < Fichas.Letras.Length; l++)
+                        @for (int l = 0; l < Fichas.PorDimension; l++)
                         {
-                            int i = d * Fichas.Letras.Length + l;
-                            string letra = Fichas.Letras[l];
-                            <tr data-nombre="@Fichas.Dimensiones[d] · @letra">
-                                <th scope="row">@letra</th>
+                            int i = d * Fichas.PorDimension + l;
+                            <tr class="fr-texto"><td colspan="5" id="ind@(i)">@Fichas.Indicadores[i]</td></tr>
+                            <tr data-nombre="@Fichas.Dimensiones[d] · indicador @(l + 1)">
                                 @for (int k = 1; k <= 5; k++)
                                 {
-                                    <td><input type="radio" name="n@(i)" value="@k" aria-label="@letra: @k" checked="@(ficha?.Notas[i] == k)" /></td>
+                                    <td><input type="radio" name="n@(i)" value="@k" aria-label="@k" aria-describedby="ind@(i)" checked="@(ficha?.Notas[i] == k)" /></td>
                                 }
                             </tr>
                         }

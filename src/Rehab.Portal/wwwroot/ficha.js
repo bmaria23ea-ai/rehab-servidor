@@ -14,7 +14,7 @@ document.querySelectorAll("form.ficha-rv").forEach(f => {
 
     const revisar = () => {
         const errores = [];
-        f.querySelectorAll(".fr-grupo, .fr-dim tbody tr").forEach(g => {
+        f.querySelectorAll(".fr-grupo, .fr-dim tbody tr[data-nombre]").forEach(g => {
             const falta = sinMarcar(g);
             g.classList.toggle("fr-mal", falta);
             if (falta) errores.push(`${g.dataset.nombre}: falta`);

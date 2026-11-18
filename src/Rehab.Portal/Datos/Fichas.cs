@@ -9,7 +9,7 @@ public sealed record Exposicion(decimal Segundos, DateOnly Dia, int Sesiones);
 public sealed record Ficha(Exposicion Exposicion, string Respuesta, string? Otro, string Tolerancia, int[] Notas,
                            string Terapeuta, DateTime Actualizado)
 {
-    public int Subtotal(int dimension) => Notas.Skip(dimension * 4).Take(4).Sum();
+    public int Subtotal(int dimension) => Notas.Skip(dimension * Fichas.PorDimension).Take(Fichas.PorDimension).Sum();
     public int Total => Notas.Sum();
     public string Nivel => Fichas.Nivel(Total);
 }
@@ -20,7 +20,28 @@ public sealed class Fichas(MySqlDataSource ds)
     public static readonly string[] Dimensiones =
         ["Retroalimentación en tiempo real", "Recompensas visuales", "Motivación y compromiso", "Adherencia terapéutica"];
 
-    public static readonly string[] Letras = ["A", "B", "C", "D"];
+    public const int PorDimension = 4;
+
+    // Texto de la ficha en papel, 4 por dimensión y en el mismo orden
+    public static readonly string[] Indicadores =
+    [
+        "El sistema proporciona información inmediata sobre la ejecución del movimiento.",
+        "El paciente identifica fácilmente los mensajes de corrección o guía durante la actividad.",
+        "La retroalimentación favorece la corrección de errores durante la ejecución del ejercicio.",
+        "Los mensajes emitidos son claros, comprensibles y adecuados al nivel del paciente.",
+        "El entorno virtual otorga recompensas visuales al cumplir objetivos específicos.",
+        "Las recompensas visuales son percibidas por el paciente como un reconocimiento a su desempeño.",
+        "El sistema muestra indicadores de progreso (puntos, niveles, insignias o logros).",
+        "Las recompensas visuales generan satisfacción y deseo de continuar con la actividad.",
+        "El paciente mantiene la atención durante toda la actividad.",
+        "El paciente demuestra interés por alcanzar los objetivos propuestos.",
+        "El paciente participa activamente sin requerir constantes recordatorios del terapeuta.",
+        "El paciente manifiesta satisfacción o entusiasmo durante la sesión.",
+        "El paciente completa las tareas propuestas dentro del entorno virtual.",
+        "El paciente intenta mejorar su rendimiento tras recibir retroalimentación.",
+        "El paciente responde positivamente ante los estímulos visuales de recompensa.",
+        "El paciente expresa disposición para participar en futuras sesiones.",
+    ];
 
     public static readonly (string Clave, string Texto)[] Respuestas =
         [("normal", "Normal"), ("mareo", "Mareo"), ("desorientacion", "Desorientación"), ("otro", "Otro")];
@@ -32,7 +53,6 @@ public sealed class Fichas(MySqlDataSource ds)
         [(64, 80, "Excelente"), (48, 63, "Adecuada"), (32, 47, "Moderada"), (16, 31, "Baja")];
 
     public const int MaxOtro = 60;
-    private static int Indicadores => Dimensiones.Length * Letras.Length;
 
     public static string Nivel(int total) => Niveles.First(n => total >= n.Desde && total <= n.Hasta).Texto;
 
@@ -126,7 +146,7 @@ public sealed class Fichas(MySqlDataSource ds)
         return true;
     }
 
-    // Campos: respuesta, otro, tolerancia, n0..n15 (dimensión x 4 + letra)
+    // Campos: respuesta, otro, tolerancia, n0..n15 (dimensión x 4 + indicador)
     private static bool Validar(IFormCollection form, out string respuesta, out string? otro,
                                 out string tolerancia, out string notas)
     {
@@ -144,7 +164,7 @@ public sealed class Fichas(MySqlDataSource ds)
             if (otro.Length is 0 or > MaxOtro || otro.Any(char.IsControl)) return false;
         }
 
-        var c = new char[Indicadores];
+        var c = new char[Indicadores.Length];
         for (int i = 0; i < c.Length; i++)
         {
             string v = form[$"n{i}"].ToString();

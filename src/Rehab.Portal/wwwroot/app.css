@@ -237,10 +237,11 @@ progress { width: 100%; height: 12px; accent-color: var(--primario); }
 .fr-escala { font-size: .85rem; color: #5B6672; margin: 0 0 .75rem; }
 .fr-dim h2 { font-size: 1rem; }
 .fr-dim table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.fr-dim .fr-c1 { width: 5.2rem; }
 .fr-dim th, .fr-dim td { padding: .5rem 0; text-align: center; border-bottom: 1px solid #E6EAEF; background: none; }
 .fr-dim thead th { font-size: .8rem; color: #5B6672; font-weight: 600; }
 .fr-dim tr:last-child > * { border-bottom: 0; }
+.fr-dim tr.fr-texto td { white-space: normal; padding: .6rem 0 0; border-bottom: 0; text-align: left; font-size: .8rem; line-height: 1.35; color: #5B6672; }
+.fr-dim tr.fr-texto:has(+ tr.fr-mal) td { background: #FDF0EF; color: var(--rojo); }
 .fr-res table { width: 100%; border-collapse: collapse; }
 .fr-res th, .fr-res td { padding: .45rem .25rem; border-bottom: 1px solid #E6EAEF; text-align: left; }
 .fr-res th:last-child, .fr-res td:last-child { text-align: right; white-space: nowrap; }
@@ -248,5 +249,5 @@ progress { width: 100%; height: 12px; accent-color: var(--primario); }
 .fr-nivel { margin-top: .75rem; }
 .fr-grupo.fr-mal .fr-opciones label { border-color: var(--rojo); background: #FDF0EF; }
 .fr-dim tr.fr-mal > * { background: #FDF0EF; }
-.fr-dim tr.fr-mal th { color: var(--rojo); }
+.fr-dim td input { display: block; margin: 0 auto; }
 .fr-otro.med-mal { border-color: var(--rojo); border-width: 2px; background: #FDF0EF; }
