@@ -18,7 +18,7 @@ public static class AccionesPacientes
             return Results.File(await excel.CrearAsync(p.Codigo), Excel.Tipo, $"{p.Codigo}_{Hora.HoyEcuador():yyyy-MM-dd}.xlsx");
         });
 
-        app.MapPost("/pacientes/{codigo}/ficha", async (string codigo, HttpRequest req, Fichas repo, ClaimsPrincipal u, Auditoria log) =>
+        app.MapPost("/pacientes/{codigo}/ficha/guardar", async (string codigo, HttpRequest req, Fichas repo, ClaimsPrincipal u, Auditoria log) =>
         {
             if (!Codigo(codigo)) return Results.NotFound();
             var form = await req.ReadFormAsync();
