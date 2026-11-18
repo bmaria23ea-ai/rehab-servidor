@@ -45,6 +45,7 @@ builder.Services.AddSingleton<Auditoria>();
 builder.Services.AddSingleton<Observaciones>();
 builder.Services.AddSingleton<Exportacion>();
 builder.Services.AddSingleton<Mediciones>();
+builder.Services.AddSingleton<Fichas>();
 
 builder.Services.AddDataProtection().SetApplicationName("rehab-portal");
 builder.Services.Configure<KeyManagementOptions>(o => o.XmlRepository = new ClavesMariaDb(ds));

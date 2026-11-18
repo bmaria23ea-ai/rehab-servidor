@@ -3,6 +3,7 @@
 @inject Pacientes Repo
 @inject Sesiones SesionesRepo
 @inject Mediciones MedicionesRepo
+@inject Fichas FichasRepo
 
 <PageTitle>@Codigo</PageTitle>
 
@@ -24,6 +25,28 @@ else
     @if (Error == "confirmar") { <p class="error">Escriba el código del paciente para confirmar.</p> }
     @if (Error == "eliminar") { <p class="error">No se pudo eliminar.</p> }
     @if (Ok == "sesion_eliminada") { <p class="exito">Sesión y datos eliminados.</p> }
+
+    <section class="panel fr-tarjeta">
+        <div class="fr-cabecera">
+            <h2>Ficha de retroalimentación</h2>
+            @if (ficha is not null) { <span class="estado activo">@ficha.Nivel</span> }
+            else if (tieneSesiones) { <span class="estado pendiente">Pendiente</span> }
+        </div>
+        @if (ficha is not null)
+        {
+            <p class="ayuda">Llenada el @Hora.Fecha(ficha.Actualizado) por @ficha.Terapeuta · Total @ficha.Total / 80</p>
+            <a href="/pacientes/@p.Codigo/ficha">Ver ficha ›</a>
+        }
+        else if (tieneSesiones)
+        {
+            <p class="ayuda">Se llena una sola vez.</p>
+            <a href="/pacientes/@p.Codigo/ficha">Llenar ficha ›</a>
+        }
+        else
+        {
+            <p class="ayuda">Disponible después de la primera sesión.</p>
+        }
+    </section>
 
     <nav class="pestanas" aria-label="Ejercicio">
         <a href="/pacientes/@p.Codigo" aria-current="@(Pestana == "marcha" ? "page" : null)">Marcha</a>
@@ -340,6 +363,8 @@ else
 
     private string Pestana => Ejercicio is "respiracion" or "gimnasio" or "vida" ? Ejercicio! : "marcha";
     private PacienteFila? p;
+    private Ficha? ficha;
+    private bool tieneSesiones;
     private List<SesionFila> marcha = [];
     private Dictionary<ulong, Dictionary<string, Medicion>> mediciones = [];
     private List<SesionFila> gimnasio = [];
@@ -369,6 +394,8 @@ else
     {
         p = await Repo.BuscarAsync(Codigo.ToUpperInvariant());
         if (p is null) return;
+        ficha = await FichasRepo.BuscarAsync(p.Codigo);
+        tieneSesiones = p.Sesiones > 0;
         if (Pestana == "gimnasio")
         {
             await CargarGimnasioAsync();

@@ -1,0 +1,136 @@
+@page "/pacientes/{Codigo}/ficha"
+@inject Pacientes Repo
+@inject Fichas FichasRepo
+
+<PageTitle>Ficha @Codigo</PageTitle>
+
+<a class="volver" href="/pacientes/@Codigo.ToUpperInvariant()">‹ @Codigo.ToUpperInvariant()</a>
+<h1>Ficha de retroalimentación del entorno de RV</h1>
+
+@if (p is null)
+{
+    <p>El paciente no existe.</p>
+}
+else if (exposicion is null)
+{
+    <p class="ayuda">Disponible después de la primera sesión.</p>
+}
+else
+{
+    <form method="post" action="/pacientes/@p.Codigo/ficha" class="ficha-rv">
+        <AntiforgeryToken />
+        <section class="panel">
+            <div class="fr-cabecera">
+                <span class="fr-campo">Tiempo de exposición</span>
+                <strong>@Textos.MinSeg(exposicion.Segundos)</strong>
+            </div>
+            <p class="ayuda">Suma de @(exposicion.Sesiones == 1 ? "1 sesión" : $"{exposicion.Sesiones} sesiones") del @exposicion.Dia.ToString("dd/MM/yyyy") (primer día).</p>
+
+            <fieldset class="fr-grupo" data-nombre="Respuesta perceptual">
+                <legend class="fr-campo">Respuesta perceptual</legend>
+                <div class="fr-opciones">
+                    @foreach (var o in Fichas.Respuestas)
+                    {
+                        <label><input type="radio" name="respuesta" value="@o.Clave" checked="@(ficha?.Respuesta == o.Clave)" />@o.Texto</label>
+                    }
+                </div>
+                <input class="fr-otro" name="otro" maxlength="@Fichas.MaxOtro" aria-label="Otro: describa la respuesta" value="@ficha?.Otro" autocomplete="off" />
+            </fieldset>
+
+            <fieldset class="fr-grupo" data-nombre="Tolerancia a la RV">
+                <legend class="fr-campo">Tolerancia a la RV</legend>
+                <div class="fr-opciones">
+                    @foreach (var o in Fichas.Tolerancias)
+                    {
+                        <label><input type="radio" name="tolerancia" value="@o.Clave" checked="@(ficha?.Tolerancia == o.Clave)" />@o.Texto</label>
+                    }
+                </div>
+            </fieldset>
+        </section>
+
+        <p class="fr-escala">Escala: 1 = Nunca · 2 = Rara vez · 3 = Algunas veces · 4 = Frecuentemente · 5 = Siempre</p>
+
+        @for (int d = 0; d < Fichas.Dimensiones.Length; d++)
+        {
+            <section class="panel fr-dim">
+                <h2>@Fichas.Dimensiones[d]</h2>
+                <table>
+                    <colgroup><col class="fr-c1" /><col /><col /><col /><col /><col /></colgroup>
+                    <thead>
+                        <tr>
+                            <th scope="col">Indicador</th>
+                            @for (int k = 1; k <= 5; k++) { <th scope="col">@k</th> }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int l = 0; l < Fichas.Letras.Length; l++)
+                        {
+                            int i = d * Fichas.Letras.Length + l;
+                            string letra = Fichas.Letras[l];
+                            <tr data-nombre="@Fichas.Dimensiones[d] · @letra">
+                                <th scope="row">@letra</th>
+                                @for (int k = 1; k <= 5; k++)
+                                {
+                                    <td><input type="radio" name="n@(i)" value="@k" aria-label="@letra: @k" checked="@(ficha?.Notas[i] == k)" /></td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+
+        @if (ficha is not null)
+        {
+            <section class="panel fr-res">
+                <h2>Resultados</h2>
+                <table>
+                    <thead><tr><th scope="col">Dimensión</th><th scope="col">Puntaje</th></tr></thead>
+                    <tbody>
+                        @for (int d = 0; d < Fichas.Dimensiones.Length; d++)
+                        {
+                            <tr><td>@Fichas.Dimensiones[d]</td><td>@ficha.Subtotal(d) / 20</td></tr>
+                        }
+                    </tbody>
+                    <tfoot><tr><td>Total</td><td>@ficha.Total / 80</td></tr></tfoot>
+                </table>
+                <div class="fr-cabecera fr-nivel">
+                    <span>Nivel de implementación</span>
+                    <span class="estado activo">@ficha.Nivel</span>
+                </div>
+                <p class="ayuda">@string.Join(" · ", Fichas.Niveles.Select(n => $"{n.Texto} {n.Desde}–{n.Hasta}"))</p>
+                <p class="ayuda">Llenada por @ficha.Terapeuta el @Hora.FechaHora(ficha.Actualizado)</p>
+            </section>
+        }
+
+        <div class="med-aviso" role="alert" tabindex="-1" hidden></div>
+        @if (Error is not null) { <p class="med-aviso" role="status">No se guardó. Revise los valores.</p> }
+        @if (Ok == "guardada") { <p class="exito med-ok" role="status">Ficha guardada.</p> }
+        @if (Ok == "borrada") { <p class="exito med-ok" role="status">Ficha borrada.</p> }
+        <div class="fila">
+            <button type="submit">Guardar</button>
+            @if (ficha is not null)
+            {
+                <button type="submit" class="claro" formaction="/pacientes/@p.Codigo/ficha/borrar" formnovalidate>Borrar</button>
+            }
+        </div>
+    </form>
+}
+
+@code {
+    [Parameter] public string Codigo { get; set; } = "";
+    [SupplyParameterFromQuery] private string? Ok { get; set; }
+    [SupplyParameterFromQuery] private string? Error { get; set; }
+
+    private PacienteFila? p;
+    private Ficha? ficha;
+    private Exposicion? exposicion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        p = await Repo.BuscarAsync(Codigo.ToUpperInvariant());
+        if (p is null) return;
+        ficha = await FichasRepo.BuscarAsync(p.Codigo);
+        exposicion = ficha?.Exposicion ?? await FichasRepo.ExposicionAsync(p.Codigo);
+    }
+}

@@ -221,3 +221,32 @@ progress { width: 100%; height: 12px; accent-color: var(--primario); }
 .vc-tabla thead th:first-child { text-align: left; padding-left: 0; }
 .muestra.novalidas { background: #9DB7D5; }
 .muestra.incompleta { background: none; border: 1.5px dashed #5B6672; }
+
+/* Ficha de retroalimentación del entorno de RV */
+.fr-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.fr-tarjeta h2 { margin: 0; }
+.fr-tarjeta p { margin: .35rem 0; }
+.fr-campo { font-weight: 600; }
+.fr-grupo { border: 0; margin: .9rem 0 0; padding: 0; min-width: 0; }
+.fr-grupo legend { padding: 0; margin-bottom: .4rem; }
+.fr-opciones { display: flex; flex-wrap: wrap; gap: .5rem; }
+.fr-opciones label { display: inline-flex; align-items: center; gap: .4rem; margin: 0; padding: .4rem .85rem; border: 1px solid #C4CCD4; border-radius: 999px; background: #fff; font-weight: 400; cursor: pointer; }
+.fr-opciones input, .fr-dim input { width: 1.15rem; height: 1.15rem; margin: 0; padding: 0; flex: none; accent-color: #1D4E89; }
+.fr-otro { margin-top: .5rem; max-width: 22rem; }
+.fr-otro:disabled { display: none; }
+.fr-escala { font-size: .85rem; color: #5B6672; margin: 0 0 .75rem; }
+.fr-dim h2 { font-size: 1rem; }
+.fr-dim table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.fr-dim .fr-c1 { width: 5.2rem; }
+.fr-dim th, .fr-dim td { padding: .5rem 0; text-align: center; border-bottom: 1px solid #E6EAEF; background: none; }
+.fr-dim thead th { font-size: .8rem; color: #5B6672; font-weight: 600; }
+.fr-dim tr:last-child > * { border-bottom: 0; }
+.fr-res table { width: 100%; border-collapse: collapse; }
+.fr-res th, .fr-res td { padding: .45rem .25rem; border-bottom: 1px solid #E6EAEF; text-align: left; }
+.fr-res th:last-child, .fr-res td:last-child { text-align: right; white-space: nowrap; }
+.fr-res tfoot td { font-weight: 700; border-bottom: 0; }
+.fr-nivel { margin-top: .75rem; }
+.fr-grupo.fr-mal .fr-opciones label { border-color: var(--rojo); background: #FDF0EF; }
+.fr-dim tr.fr-mal > * { background: #FDF0EF; }
+.fr-dim tr.fr-mal th { color: var(--rojo); }
+.fr-otro.med-mal { border-color: var(--rojo); border-width: 2px; background: #FDF0EF; }
