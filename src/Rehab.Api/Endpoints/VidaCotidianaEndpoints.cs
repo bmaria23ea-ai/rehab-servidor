@@ -42,7 +42,7 @@ public static class VidaCotidianaEndpoints
     {
         var errores = Validar(s, DateTime.UtcNow);
         if (errores.Count > 0)
-            return Results.ValidationProblem(errores, statusCode: 422, title: "Datos de sesión no válidos.");
+            return Rechazada(log, http, errores);
 
         // visor siempre desde el JWT (OWASP API1)
         ushort visorId = ushort.Parse(http.User.FindFirst(EmisorJwt.ClaimVisor)!.Value);
@@ -68,9 +68,7 @@ public static class VidaCotidianaEndpoints
             buscar.Parameters.AddWithValue("@codigo", s.Paciente);
             await using var lector = await buscar.ExecuteReaderAsync(ct);
             if (!await lector.ReadAsync(ct))
-                return Results.ValidationProblem(
-                    new Dictionary<string, string[]> { ["paciente"] = ["Paciente no registrado."] },
-                    statusCode: 422, title: "Datos de sesión no válidos.");
+                return Rechazada(log, http, new Dictionary<string, string[]> { ["paciente"] = ["Paciente no registrado."] });
             pacienteId = Convert.ToInt32(lector.GetValue(0));
             pacienteDePrueba = lector.GetBoolean(1);
         }

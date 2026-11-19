@@ -24,6 +24,15 @@ public static partial class SesionesEndpoints
 
     internal const int MinutosAsignacion = 30;
 
+    // 422 y registro de los campos rechazados: solo nombres de campo y mensajes fijos, nunca valores
+    internal static IResult Rechazada(ILogger log, HttpContext http, Dictionary<string, string[]> errores)
+    {
+        log.LogWarning("Sesión rechazada en {Ruta} (visor {VisorId}): {Errores}",
+            http.Request.Path.Value, http.User.FindFirst(EmisorJwt.ClaimVisor)?.Value,
+            string.Join("; ", errores.Select(e => $"{e.Key}: {string.Join(" ", e.Value)}")));
+        return Results.ValidationProblem(errores, statusCode: 422, title: "Datos de sesión no válidos.");
+    }
+
     private static readonly HashSet<string> Motivos =
         ["completada", "detenida", "salida_menu", "visor_retirado", "app_pausada", "error"];
 
@@ -48,7 +57,7 @@ public static partial class SesionesEndpoints
     {
         var errores = Validar(s, DateTime.UtcNow);
         if (errores.Count > 0)
-            return Results.ValidationProblem(errores, statusCode: 422, title: "Datos de sesión no válidos.");
+            return Rechazada(log, http, errores);
 
         // A partir de aquí la validación garantiza que los campos obligatorios tienen valor
         ushort visorId = ushort.Parse(http.User.FindFirst(EmisorJwt.ClaimVisor)!.Value);
@@ -74,9 +83,7 @@ public static partial class SesionesEndpoints
             buscar.Parameters.AddWithValue("@codigo", s.Paciente);
             await using var r = await buscar.ExecuteReaderAsync(ct);
             if (!await r.ReadAsync(ct))
-                return Results.ValidationProblem(
-                    new Dictionary<string, string[]> { ["paciente"] = ["Paciente no registrado."] },
-                    statusCode: 422, title: "Datos de sesión no válidos.");
+                return Rechazada(log, http, new Dictionary<string, string[]> { ["paciente"] = ["Paciente no registrado."] });
             pacienteId = Convert.ToInt32(r.GetValue(0));
             pacienteDePrueba = r.GetBoolean(1);
         }
